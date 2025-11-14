@@ -139,7 +139,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
     }
 
     const pdfBytes = await doc.save();
-    return new NextResponse(new Blob([pdfBytes], { type: 'application/pdf' }), {
+    // Convert Uint8Array to ArrayBuffer for NextResponse compatibility
+    const arrayBuffer = new ArrayBuffer(pdfBytes.length);
+    new Uint8Array(arrayBuffer).set(pdfBytes);
+    return new NextResponse(arrayBuffer, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
