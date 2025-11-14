@@ -1,0 +1,27 @@
+id,abbreviation,name,business_email,business_phone,address,city,postal_code,country,category,billing_code,service_manager,created_at,updated_at,website,customer_instructions,sla
+,POC,Pocsports Austria GmbH,office@pocsports.at,+43 (0) 662 890090,Siezenheimer Straße 39d,Salzburg,5020,Österreich,A,VER,AME,,,www.pocsports.com,,true
+,Red Bull - APC ,Red Bull - Athlete Performance Data Services GmbH,office@redbullperformance.com,+43 (0) 6235 50288,Brunnbachweg 71,Thalgau,5303,Österreich,A,AAWSE,SAI,,,,,false
+,TSG,Tourismus Salzburg GmbH,office@salzburg.info,+43 (0) 662 88987,Auerspergstraße 6,Salzburg,5020,Österreich,A,AAWSE,AME,,,http://www.salzburginfo.com,,true
+,AdoptSMT,AdoptSMT Europe GmbH,info@adoptsmt.com,+43 (0) 6246 72440,Untersbergstrasse 1,Grödig,5082,Österreich,A,VER,AME,,,http://www.adoptsmt.com,,true
+,KOKO,KOKO Kontakt- und Kommunikationszentrum für Kinder Gemeinnützige GmbH,office@koko.at,+43 (0) 662 436369 0,Ignaz-Harrer-Str.38,Salzburg,5020,Österreich ,A,VER,AME,,,http://www.koko.at,,true
+,Limmert,Gebrüder Limmert AG,
+office@limmert.com,+43 (0) 662 88933,Samergasse 30A,Salzburg ,5020,Österreich ,A,VER,AME,,,http://www.limmert.at,,true
+,AK SBG,Arbeiterkammer Salzburg,kontakt@ak-salzburg.at,+43 (0) 662 8687 0,Markus-Sittikus-Straße 10,Salzburg ,5020,Österreich ,A,AAWSE,SAI,,,http://www.ak-sbg.at,,true
+,TTG,TTG Tourismus Technologie Ges.m.b.H.,Info@ttg.at,0732 7277-300,Freistädter Str. 119,Linz,4041,Österreich ,B,AAWSE,SAI,,,http://www.ttg.at,,true
+,CBS,CBS Channoine Business Systems GmbH,service@channoine.com,+43 (0) 662 4472 - 232,Michael Walzgasse 15,Salzburg ,5017,Österreich,B,AAWSE,SAI,,,http://www.channoine.com,,true
+,EAA,EAA - Euro Aviation Academy GmbH,office@eaa.aero,+43 (0) 662 831 322 - 0,Wilhelm-Spazier-Starße 2a ,Salzburg ,5020,Österreich ,B,VER,AME,,,https://www.eaa.aero/,,true
+,VVT,Verkehrsverbund Tirol GesmbH,info@vvt.at,+43 (0) 512 575858,Sterzinger Str. 3,Innsbruck,6020,Österreich,A,AAWSE,SAI,,,http://www.vvt.at,,true
+,Elektro Graf,Elektro Graf ,office@elektro-graf.at,06278 6209,Bergstraße 18,Ostermiething,5121,Österreich,C,AAWSE,SAI,,,https://elektro-graf.at/,,false
+,Auersperg,HOTEL & VILLA  AUERSPERG GmbH,info@auersperg.at,+43 (0) 662 88944,Auerspergstraße 61,Salzburg,5020,Österreich,C,AAWSE,SAI,,,http://www.auersperg.at,,false
+,Erwin Lang ,Lang Werbeartikel GmbH & Co KG,support@lang-werbeartikel.at,+43 662 450606 0,Xantenweg 4,Bergheim ,5101,Österreich,C,AAWSE,SAI,,,https://www.lang-werbeartikel.at/,,false
+,Gadermeier,Gadermeier GmbH,office@gadermeier.at,+43 (0) 7754 2104 0,Kirchenplatz 42,Lohnsburg,4923,Österreich,C,AAWSE,SAI,,,http://www.gadermeier.at,,false
+,Pagitsch,Pagitsch Gmbh,office@pagitsch.at,+43 (0) 6474 8191 0,Gewerbepark 239,Tamsweg,5580,Österreich ,B,VER,SAI,,,http://www.pagitsch.at,,true
+,Weyland ,Weyland GmbH,office@weyland.at,+43 (0) 7712 9001,Haid 26,St.Florian,4780,Österreich ,B,VER,SAI,,,http://www.weyland.at,,true
+,RSA,Research Studios Austria Forschungs GmbH,office@researchstudio.at,+43 662 834602,Leopoldskronstraße 30,Salzburg ,5020,Österreich ,B,VER,AME,,,https://www.researchstudio.at/,,true
+,Sojall,Sojall Pro Natura GmbH,office@sojall-naturen.at,06272/41470,Salzburger Straße 19,Oberndorf,5110,Österreich,C,AAWSE,WEN,,,https://www.sojall-naturen.at/,,false
+,SMK,Salzburger Metall- & Kabel Verwertungs-Ges.m.b.H.,office@s-m-k.at,+43 (0) 6274  7598 0,Wahastraße 3,Bürmoos,5111,Österreich ,C,AAWSE,SAI,,,http://www.s-m-k.at,,false
+,Strasser,Strasser Maschinenbau GmbH,office@strasser-salzburg.at,+43 6225 8533,Gewerbestr. 9,Eugendorf,5301,Österreich ,C,AAWSE,SAI,,,http://www.strasser-salzubrg.at,,false
+,Terravistor,Terra Immoservice GmbH & Co KG,info@immoservice-austria.com,+43 (0) 662 83260110,Geroldgasse 41,Salzburg ,5026,Österreich ,C,AAWSE,AME,,,https://www.immoservice-austria.com/,,false
+,Anglberger,Anglberger GmbH,info@anglberger.at,+43 (0) 6219  6285,Handelsstrasse 2,Obertrum,5162,Österreich ,C,AAWSE,SAI,,,https://anglberger.at/,,false
+,Herz,Rienhoff Gmbh Hertz International Franchisee,,+43 1 795 42  205,Simmeringer Hauptstr. 2,Wien,1110,Österreich,A,AAWSE,AME,,,http://www.hertz.at,,true
+,Stahlgruber,Stahlgruber Austria GmbH,office@stahlgruber.at,0662 85660010,Am Römerstein 17,Wals,5071,Österreich ,A,AAWSE,SAI,,,https://www.stahlgruber.at/at,,false

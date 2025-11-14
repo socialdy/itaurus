@@ -1,0 +1,1 @@
+ALTER TABLE "maintenance" ADD COLUMN "system_trackable_items" jsonb DEFAULT '{}'::jsonb;

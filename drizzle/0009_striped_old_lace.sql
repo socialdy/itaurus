@@ -1,0 +1,1 @@
+ALTER TABLE "system" ADD COLUMN "installed_software" text[] DEFAULT '{}';

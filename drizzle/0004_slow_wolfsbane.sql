@@ -1,0 +1,1 @@
+ALTER TABLE "maintenance" ADD COLUMN "system_notes" jsonb DEFAULT '{}'::jsonb;
