@@ -139,7 +139,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     }
 
     const pdfBytes = await doc.save();
-    return new NextResponse(pdfBytes, {
+    return new NextResponse(new Blob([pdfBytes], { type: 'application/pdf' }), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
