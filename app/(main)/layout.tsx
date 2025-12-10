@@ -13,14 +13,13 @@ export default async function MainLayout({
   });
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      <Sidebar />
+    <div className="flex min-h-screen bg-background flex-col lg:flex-row">
+      <Sidebar user={session?.user} />
       <main className="flex-1 flex flex-col">
         <header className="hidden lg:flex h-16 items-center justify-end border-b border-border px-6 w-full flex-shrink-0">
           <UserProfile user={session?.user || null} />
         </header>
-        <div className="h-16 lg:hidden flex-shrink-0" />
-        <div className="flex-1 overflow-y-auto px-4 lg:px-8 pt-6">
+        <div className="flex-1 px-4 lg:px-8 pt-6">
           {children}
         </div>
       </main>

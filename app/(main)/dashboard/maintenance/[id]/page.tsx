@@ -1,27 +1,58 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { AlertCircle, ArrowLeft } from "lucide-react"
+import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { AlertCircle, FileText, Save, Search, Building2, User, MapPin, Mail, Phone, Users, Pencil } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
-import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal,
+  DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+} from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-} from "@/components/ui/table"
+import { SystemCard } from "@/components/maintenance/system-card"
+import { MultiSystemBulkUpdateBar } from "@/components/maintenance/multi-system-bulk-update-bar"
+import { SimpleEditor } from "@/components/tiptap-templates/simple/simple-editor"
+import { useSystemDefinitions } from "@/lib/system-definitions"
+import { MaintenanceEntryForm, MaintenanceEntryFormData } from "@/components/ui/maintenance-entry-form"
 
 type MaintenanceStatus = "OK" | "Error" | "InProgress" | "NotApplicable" | "Planned"
+
+const STATUS_LABELS: Record<string, string> = {
+  "OK": "OK",
+  "Error": "Fehler",
+  "InProgress": "In Arbeit",
+  "NotApplicable": "N/A",
+  "NotDone": "Offen",
+}
+
+type ContactPerson = {
+  id: string
+  name: string
+  email: string
+  phone: string
+}
 
 type MaintenanceDetail = {
   id: string
@@ -29,67 +60,481 @@ type MaintenanceDetail = {
   date: string
   status: MaintenanceStatus
   notes?: string | null
-  customer?: { id: string; name: string; abbreviation: string }
-  systems?: Array<{ id: string; hostname: string }>
-  technicians?: Array<{ id: string; name: string }>
+  instructions?: string | null
+  customerId: string
+  customer?: {
+    id: string;
+    name: string;
+    abbreviation: string;
+    address?: string;
+    city?: string;
+    postalCode?: string;
+    serviceManager?: string;
+    maintenanceNotes?: string;
+    businessEmail?: string;
+    businessPhone?: string;
+    website?: string;
+    contactPeople?: ContactPerson[];
+  }
+  systemIds?: string[] | null
+  technicianIds?: string[] | null
+  systemNotes?: Record<string, string>
+  systemTechnicianAssignments?: Record<string, string[]>
+  systemTrackableItems?: Record<string, Record<string, string | undefined>>
 }
 
-const statusTone: Record<MaintenanceStatus, string> = {
-  OK: "bg-emerald-500/15 text-emerald-700",
-  Error: "bg-red-500/15 text-red-700",
-  InProgress: "bg-blue-500/15 text-blue-700",
-  NotApplicable: "bg-slate-500/15 text-slate-700",
-  Planned: "bg-amber-500/15 text-amber-700",
+type ApiSystem = {
+  id: string
+  hostname: string
+  description?: string | null
+  ipAddress?: string | null
+  hardwareType?: string | null
+  operatingSystem?: string | null
+  serverApplicationType?: string | null
+  maintenanceInterval?: string | null
+  installedSoftware?: string[] | null
+}
+
+interface Filters {
+  hardwareType: string | null;
+  serverApplicationType: string | null;
+  technicianId: string | null;
+  operatingSystem: string | null;
 }
 
 export default function MaintenanceDetailPage() {
   const router = useRouter()
   const params = useParams<{ id?: string }>()
   const maintenanceId = params?.id
+  const { technicians, hardwareTypes, serverApplicationTypes, operatingSystems } = useSystemDefinitions()
 
   const [entry, setEntry] = useState<MaintenanceDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [systems, setSystems] = useState<ApiSystem[]>([])
+  const [systemsLoading, setSystemsLoading] = useState(false)
+  const [systemsError, setSystemsError] = useState<string | null>(null)
+  const [maintenanceNotes, setMaintenanceNotes] = useState<string>("")
+  const [isEditOpen, setIsEditOpen] = useState(false)
+
+  // Ref to access latest entry state in callbacks without dependency
+  const entryRef = useRef(entry)
+  useEffect(() => { entryRef.current = entry }, [entry])
+
+
+
+  // Filtering state
+  const [searchQuery, setSearchQuery] = useState("")
+  const [filters, setFilters] = useState<Filters>({
+    hardwareType: null,
+    serverApplicationType: null,
+    technicianId: null,
+    operatingSystem: null,
+  });
+
+  // System selection state for bulk updates
+  const [selectedSystems, setSelectedSystems] = useState<Set<string>>(new Set())
+
+  const handleReport = () => {
+    window.open(`/api/maintenance/${maintenanceId}/report`, "_blank")
+  }
+
+  const fetchEntry = useCallback(async () => {
+    if (!maintenanceId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch(`/api/maintenance/${maintenanceId}`)
+      if (!response.ok) {
+        throw new Error("Wartungseintrag konnte nicht geladen werden.")
+      }
+      const data = (await response.json()) as MaintenanceDetail
+      setEntry(data)
+      if (data.customer?.maintenanceNotes) {
+        setMaintenanceNotes(data.customer.maintenanceNotes)
+      }
+    } catch (fetchError: unknown) {
+      const message =
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Unbekannter Fehler beim Laden des Wartungseintrags."
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }, [maintenanceId])
 
   useEffect(() => {
-    if (!maintenanceId) return
+    fetchEntry()
+  }, [fetchEntry])
+
+  useEffect(() => {
+    if (!entry?.customerId) return
+
     let isMounted = true
 
-    const fetchEntry = async () => {
-      setLoading(true)
-      setError(null)
+    const fetchSystems = async () => {
+      setSystemsLoading(true)
+      setSystemsError(null)
       try {
-        const response = await fetch(`/api/maintenance/${maintenanceId}`)
+        const params = new URLSearchParams({ customerId: entry.customerId })
+        const response = await fetch(`/api/systems?${params.toString()}`)
         if (!response.ok) {
-          throw new Error("Wartungseintrag konnte nicht geladen werden.")
+          throw new Error("Systeme konnten nicht geladen werden.")
         }
-        const data = (await response.json()) as MaintenanceDetail
+        const data = (await response.json()) as ApiSystem[]
+        const byId = new Map(data.map((system) => [system.id, system]))
+
+        const orderedSystems = entry.systemIds?.length
+          ? entry.systemIds
+            .map((id) => byId.get(id))
+            .filter((system): system is ApiSystem => Boolean(system))
+          : data
+
         if (isMounted) {
-          setEntry({
-            ...data,
-            systems: data.systems ?? [],
-            technicians: data.technicians ?? [],
-          })
+          setSystems(orderedSystems)
         }
       } catch (fetchError: unknown) {
         if (!isMounted) return
         const message =
           fetchError instanceof Error
             ? fetchError.message
-            : "Unbekannter Fehler beim Laden des Wartungseintrags."
-        setError(message)
+            : "Unbekannter Fehler beim Laden der Systeme."
+        setSystemsError(message)
       } finally {
         if (isMounted) {
-          setLoading(false)
+          setSystemsLoading(false)
         }
       }
     }
 
-    fetchEntry()
+    fetchSystems()
     return () => {
       isMounted = false
     }
-  }, [maintenanceId])
+  }, [entry?.customerId, entry?.systemIds])
+
+  // Auto-assign technician if only one exists
+  useEffect(() => {
+    if (technicians.length === 1 && systems.length > 0 && entry) {
+      const singleTechId = technicians[0].id;
+      const updates: Record<string, string[]> = {};
+      let hasUpdates = false;
+
+      systems.forEach(sys => {
+        const currentAssign = entry.systemTechnicianAssignments?.[sys.id];
+        if (!currentAssign || currentAssign.length === 0) {
+          updates[sys.id] = [singleTechId];
+          hasUpdates = true;
+        }
+      });
+
+      if (hasUpdates) {
+        const updatedAssignments = { ...entry.systemTechnicianAssignments, ...updates };
+        setEntry(prev => prev ? ({ ...prev, systemTechnicianAssignments: updatedAssignments }) : null);
+
+        // Persist changes
+        fetch(`/api/maintenance/${entry.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemTechnicianAssignments: updatedAssignments,
+          }),
+        }).catch(() => toast.error("Fehler bei der automatischen Techniker-Zuweisung"));
+      }
+    }
+  }, [technicians, systems, entry?.id]);
+
+  const handleUpdateTrackableItem = useCallback(async (systemId: string, itemId: string, status: string) => {
+    const currentEntry = entryRef.current
+    if (!currentEntry || !maintenanceId) return
+
+    const currentSystemItems = currentEntry.systemTrackableItems?.[systemId] || {}
+    const updatedSystemItems = { ...currentSystemItems, [itemId]: status }
+    const updatedTrackableItems = {
+      ...currentEntry.systemTrackableItems,
+      [systemId]: updatedSystemItems,
+    }
+
+    setEntry(prev => prev ? ({ ...prev, systemTrackableItems: updatedTrackableItems }) : null)
+
+    try {
+      const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemTrackableItems: updatedTrackableItems,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update status")
+    } catch (error) {
+      toast.error("Fehler beim Speichern des Status")
+      fetchEntry()
+    }
+  }, [maintenanceId, fetchEntry])
+
+  const handleAssignTechnician = useCallback(async (systemId: string, technicianId: string) => {
+    const currentEntry = entryRef.current
+    if (!currentEntry || !maintenanceId) return
+
+    const updatedAssignments = {
+      ...currentEntry.systemTechnicianAssignments,
+      [systemId]: technicianId ? [technicianId] : [],
+    }
+
+    setEntry(prev => prev ? ({ ...prev, systemTechnicianAssignments: updatedAssignments }) : null)
+
+    try {
+      const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemTechnicianAssignments: updatedAssignments,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update technician assignment")
+      toast.success("Techniker zugewiesen")
+    } catch (error) {
+      toast.error("Fehler beim Zuweisen des Technikers")
+      fetchEntry()
+    }
+  }, [maintenanceId, fetchEntry])
+
+  const handleUpdateSystemNote = useCallback(async (systemId: string, note: string) => {
+    const currentEntry = entryRef.current
+    if (!currentEntry || !maintenanceId) return
+
+    const updatedNotes = {
+      ...currentEntry.systemNotes,
+      [systemId]: note,
+    }
+
+    setEntry(prev => prev ? ({ ...prev, systemNotes: updatedNotes }) : null)
+
+    try {
+      const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemNotes: updatedNotes,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update note")
+      toast.success("Notiz gespeichert")
+    } catch (error) {
+      toast.error("Fehler beim Speichern der Notiz")
+      fetchEntry()
+    }
+  }, [maintenanceId, fetchEntry])
+
+  const handleBulkUpdateTrackableItems = useCallback(async (systemId: string, updates: Record<string, string>) => {
+    const currentEntry = entryRef.current
+    if (!currentEntry || !maintenanceId) return
+
+    const currentSystemItems = currentEntry.systemTrackableItems?.[systemId] || {}
+    const updatedSystemItems = { ...currentSystemItems, ...updates }
+    const updatedTrackableItems = {
+      ...currentEntry.systemTrackableItems,
+      [systemId]: updatedSystemItems,
+    }
+
+    setEntry(prev => prev ? ({ ...prev, systemTrackableItems: updatedTrackableItems }) : null)
+
+    try {
+      const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemTrackableItems: updatedTrackableItems,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update status")
+    } catch (error) {
+      toast.error("Fehler beim Speichern des Status")
+      fetchEntry()
+    }
+  }, [maintenanceId, fetchEntry])
+
+  const handleBulkAssignTechnician = useCallback(async (technicianId: string) => {
+    const currentEntry = entryRef.current
+    if (!currentEntry || !maintenanceId || selectedSystems.size === 0) return
+
+    const updatedAssignments = { ...currentEntry.systemTechnicianAssignments }
+
+    selectedSystems.forEach(systemId => {
+      updatedAssignments[systemId] = technicianId ? [technicianId] : []
+    })
+
+    setEntry(prev => prev ? ({ ...prev, systemTechnicianAssignments: updatedAssignments }) : null)
+
+    try {
+      const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemTechnicianAssignments: updatedAssignments,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update technician assignment")
+      toast.success(`Techniker für ${selectedSystems.size} Systeme zugewiesen`)
+      setSelectedSystems(new Set())
+    } catch (error) {
+      toast.error("Fehler beim Zuweisen des Technikers")
+      fetchEntry()
+    }
+  }, [maintenanceId, fetchEntry, selectedSystems])
+
+  const handleSystemSelectionChange = useCallback((systemId: string, selected: boolean) => {
+    setSelectedSystems(prev => {
+      const newSet = new Set(prev)
+      if (selected) {
+        newSet.add(systemId)
+      } else {
+        newSet.delete(systemId)
+      }
+      return newSet
+    })
+  }, [])
+
+  const handleToggleSelectAll = () => {
+    if (selectedSystems.size === filteredSystems.length) {
+      setSelectedSystems(new Set())
+    } else {
+      setSelectedSystems(new Set(filteredSystems.map(s => s.id)))
+    }
+  }
+
+  const handleCrossSystemBulkUpdate = async (status: string) => {
+    if (!entry || selectedSystems.size === 0) return
+
+    const updatedTrackableItems = { ...entry.systemTrackableItems }
+
+    // Update ALL trackable items for each selected system
+    selectedSystems.forEach(systemId => {
+      const currentSystemItems = updatedTrackableItems[systemId] || {}
+      // Set all trackable items to the selected status
+      updatedTrackableItems[systemId] = {
+        ...currentSystemItems,
+        system_load: status,
+        vmware_tools: status,
+        os_updates: status,
+        app_updates: status,
+        reboots: status,
+        sql_update: status,
+        exchange_update: status,
+        event_log: status,
+        services: status,
+        final_check: status,
+      }
+    })
+
+    // Optimistic update
+    setEntry({ ...entry, systemTrackableItems: updatedTrackableItems })
+
+    try {
+      const response = await fetch(`/api/maintenance/${entry.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemTrackableItems: updatedTrackableItems,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to update status")
+      toast.success(`Alle Felder für ${selectedSystems.size} Systeme auf "${STATUS_LABELS[status] || status}" gesetzt`)
+      setSelectedSystems(new Set()) // Clear selection after successful update
+    } catch (error) {
+      toast.error("Fehler beim Speichern des Status")
+      fetchEntry()
+    }
+  }
+
+  const handleSaveMaintenanceNotes = async () => {
+    if (!entry?.customer?.id) return
+
+    try {
+      const response = await fetch(`/api/customers/${entry.customer.id}/maintenance-notes`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          maintenanceNotes: maintenanceNotes,
+        }),
+      })
+
+      if (!response.ok) throw new Error("Failed to save notes")
+      toast.success("Wartungsnotizen gespeichert")
+    } catch (error) {
+      toast.error("Fehler beim Speichern der Notizen")
+    }
+  }
+
+  const handleEditSubmit = async (data: MaintenanceEntryFormData) => {
+    if (!entry) return
+
+    try {
+      const response = await fetch(`/api/maintenance/${entry.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: data.customerId,
+          systemIds: data.systemIds ?? [],
+          technicianIds: data.technicianIds ?? [],
+          date: data.date,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Wartung konnte nicht aktualisiert werden.")
+      }
+
+      toast.success("Wartung erfolgreich aktualisiert.")
+      setIsEditOpen(false)
+      await fetchEntry()
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unbekannter Fehler beim Aktualisieren."
+      toast.error(message)
+    }
+  }
+
+  const resetFilters = () => {
+    setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null });
+  };
+
+  const filteredSystems = useMemo(() => {
+    return systems.filter(system => {
+      const matchesSearch =
+        system.hostname.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        system.ipAddress?.includes(searchQuery) ||
+        system.operatingSystem?.toLowerCase().includes(searchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (filters.hardwareType && system.hardwareType !== filters.hardwareType) return false;
+      if (filters.serverApplicationType && system.serverApplicationType !== filters.serverApplicationType) return false;
+      if (filters.technicianId) {
+        const assignedTechs = entry?.systemTechnicianAssignments?.[system.id] || [];
+        if (filters.technicianId === "unassigned") {
+          if (assignedTechs.length > 0) return false;
+        } else {
+          if (!assignedTechs.includes(filters.technicianId)) return false;
+        }
+      }
+      if (filters.operatingSystem) {
+        const os = system.operatingSystem?.toLowerCase() || "";
+        if (filters.operatingSystem === "Windows" && !os.includes("win")) return false;
+        if (filters.operatingSystem === "Linux" && !(os.includes("linux") || os.includes("debian") || os.includes("ubuntu"))) return false;
+        if (filters.operatingSystem === "Other" && (os.includes("win") || os.includes("linux") || os.includes("debian") || os.includes("ubuntu"))) return false;
+      }
+
+      return true;
+    });
+  }, [systems, searchQuery, filters, entry?.systemTechnicianAssignments]);
 
   if (loading) {
     return (
@@ -115,116 +560,465 @@ export default function MaintenanceDetailPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <Breadcrumb
-        segments={[
-          { name: "Dashboard", href: "/dashboard" },
-          { name: "Wartungen", href: "/dashboard/maintenance" },
-          { name: entry.title },
-        ]}
-      />
+      {/* Header Section */}
+      <div className="space-y-4">
+        <Breadcrumb
+          segments={[
+            { name: "Dashboard", href: "/dashboard" },
+            { name: "Wartungen", href: "/dashboard/maintenance" },
+            { name: entry.title },
+          ]}
+        />
 
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" className="px-2" onClick={() => router.push("/dashboard/maintenance")}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Zurück
-        </Button>
-        <div>
-          <h1 className="text-2xl font-semibold">{entry.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            {entry.customer
-              ? `${entry.customer.name} (${entry.customer.abbreviation})`
-              : "Keinem Kunden zugewiesen"}
-          </p>
+        {/* Modern Two-Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column: Customer Details */}
+          <div className="space-y-4">
+            <h1 className="text-3xl font-bold tracking-tight">{entry.title}</h1>
+
+            <div className="space-y-3 p-4 rounded-lg border bg-card">
+              {/* Customer Name */}
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+                  <Building2 className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <div className="font-semibold text-base">{entry.customer?.name}</div>
+                  <div className="text-xs text-muted-foreground">{entry.customer?.abbreviation}</div>
+                </div>
+              </div>
+
+              <div className="border-t pt-3 space-y-2.5">
+                {/* Service Manager */}
+                {entry.customer?.serviceManager && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">Service Manager:</span>
+                    <span className="font-medium">{entry.customer.serviceManager}</span>
+                  </div>
+                )}
+
+                {/* Address */}
+                {(entry.customer?.city || entry.customer?.address) && (
+                  <div className="flex items-start gap-2.5 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <span className="text-muted-foreground">Adresse:</span>
+                    <span className="font-medium">
+                      {entry.customer.address}, {entry.customer.postalCode} {entry.customer.city}
+                    </span>
+                  </div>
+                )}
+
+                {/* Email */}
+                {entry.customer?.businessEmail && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">E-Mail:</span>
+                    <a
+                      href={`mailto:${entry.customer.businessEmail}`}
+                      className="font-medium hover:text-primary transition-colors hover:underline"
+                    >
+                      {entry.customer.businessEmail}
+                    </a>
+                  </div>
+                )}
+
+                {/* Phone */}
+                {entry.customer?.businessPhone && (
+                  <div className="flex items-center gap-2.5 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">Telefon:</span>
+                    <a
+                      href={`tel:${entry.customer.businessPhone}`}
+                      className="font-medium hover:text-primary transition-colors hover:underline"
+                    >
+                      {entry.customer.businessPhone}
+                    </a>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Contact People & Report Button */}
+          <div className="space-y-4">
+            {/* Contact People */}
+            {entry.customer?.contactPeople && entry.customer.contactPeople.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <Users className="h-4 w-4" />
+                  <span>Ansprechpartner</span>
+                </div>
+                <div className="space-y-2">
+                  {entry.customer.contactPeople.map((contact) => (
+                    <div
+                      key={contact.id}
+                      className="flex items-start gap-3 p-3 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                        <User className="h-4 w-4 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="font-medium text-sm">{contact.name}</div>
+                        {contact.email && (
+                          <a
+                            href={`mailto:${contact.email}`}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate">{contact.email}</span>
+                          </a>
+                        )}
+                        {contact.phone && (
+                          <a
+                            href={`tel:${contact.phone}`}
+                            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Phone className="h-3 w-3" />
+                            <span>{contact.phone}</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1" />
+            )}
+
+            {/* Report Button and Status Button - Always at bottom right */}
+            <div className="flex justify-end gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Status ändern
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Wartungsstatus</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      try {
+                        const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'Planned' }),
+                        })
+                        if (!response.ok) throw new Error('Failed to update status')
+                        await fetchEntry()
+                        toast.success('Status auf "Geplant" gesetzt')
+                      } catch (error) {
+                        toast.error('Fehler beim Aktualisieren des Status')
+                      }
+                    }}
+                  >
+                    Geplant
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      try {
+                        const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'InProgress' }),
+                        })
+                        if (!response.ok) throw new Error('Failed to update status')
+                        await fetchEntry()
+                        toast.success('Status auf "In Arbeit" gesetzt')
+                      } catch (error) {
+                        toast.error('Fehler beim Aktualisieren des Status')
+                      }
+                    }}
+                  >
+                    In Arbeit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      try {
+                        const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'OK' }),
+                        })
+                        if (!response.ok) throw new Error('Failed to update status')
+                        await fetchEntry()
+                        toast.success('Status auf "Abgeschlossen" gesetzt')
+                      } catch (error) {
+                        toast.error('Fehler beim Aktualisieren des Status')
+                      }
+                    }}
+                  >
+                    Abgeschlossen
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      try {
+                        const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'Error' }),
+                        })
+                        if (!response.ok) throw new Error('Failed to update status')
+                        await fetchEntry()
+                        toast.success('Status auf "Fehler" gesetzt')
+                      } catch (error) {
+                        toast.error('Fehler beim Aktualisieren des Status')
+                      }
+                    }}
+                  >
+                    Fehler
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      try {
+                        const response = await fetch(`/api/maintenance/${maintenanceId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ status: 'NotApplicable' }),
+                        })
+                        if (!response.ok) throw new Error('Failed to update status')
+                        await fetchEntry()
+                        toast.success('Status auf "Nicht anwendbar" gesetzt')
+                      } catch (error) {
+                        toast.error('Fehler beim Aktualisieren des Status')
+                      }
+                    }}
+                  >
+                    Nicht anwendbar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button onClick={handleReport} className="bg-primary shadow-sm hover:bg-primary/90">
+                <FileText className="mr-2 h-4 w-4" />
+                Bericht erstellen
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>Allgemeine Informationen</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Zeit, Status und Kurzbeschreibung
-            </p>
-          </div>
-          <Badge className={statusTone[entry.status]}>{entry.status}</Badge>
-        </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-2">
-          <div className="space-y-3">
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Zeitpunkt</p>
-              <p className="text-sm font-medium">
-                {new Date(entry.date).toLocaleString("de-AT", {
-                  dateStyle: "full",
-                  timeStyle: "short",
-                })}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs uppercase text-muted-foreground">Kunde</p>
-              <p className="text-sm font-medium">
-                {entry.customer
-                  ? `${entry.customer.name} (${entry.customer.abbreviation})`
-                  : "Keine Zuordnung"}
-              </p>
-            </div>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-muted-foreground">Notizen</p>
-            <p className="text-sm font-medium whitespace-pre-line">
-              {entry.notes?.trim() || "Keine zusätzlichen Anmerkungen"}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Wartung bearbeiten</DialogTitle>
+            <DialogDescription>Bearbeiten Sie die Details der Wartung.</DialogDescription>
+          </DialogHeader>
+          {entry && (
+            <MaintenanceEntryForm
+              initialData={{
+                id: entry.id,
+                customerId: entry.customerId,
+                systemIds: entry.systemIds || [],
+                technicianIds: entry.technicianIds || [],
+                date: entry.date,
+              }}
+              customers={entry.customer ? [{
+                id: entry.customer.id,
+                name: entry.customer.name,
+                abbreviation: entry.customer.abbreviation
+              }] : []}
+              systems={systems.map(s => ({ ...s, customerId: entry.customerId }))}
+              technicians={technicians.map(t => t.id)}
+              onSubmit={handleEditSubmit}
+              onCancel={() => setIsEditOpen(false)}
+              submitButtonText="Änderungen speichern"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Betroffene Systeme</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {entry.systems && entry.systems.length > 0 ? (
-              <Table>
-                <TableBody>
-                  {entry.systems.map((system) => (
-                    <TableRow key={system.id}>
-                      <TableCell className="font-medium">{system.hostname}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Keine Systeme verknüpft.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+      {/* Separator */}
+      <div className="border-t" />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Techniker</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {entry.technicians && entry.technicians.length > 0 ? (
-              <Table>
-                <TableBody>
-                  {entry.technicians.map((technician) => (
-                    <TableRow key={technician.id}>
-                      <TableCell className="font-medium">{technician.name}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Keine Techniker zugewiesen.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+      {/* Systems Section */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold tracking-tight flex items-center gap-2">
+            Systemstatus
+            <Badge variant="secondary" className="ml-2 rounded-full px-2.5">
+              {filteredSystems.length}
+            </Badge>
+          </h2>
+
+          <div className="flex items-center gap-2">
+            <div className="relative w-full sm:w-[250px]">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Suchen..."
+                className="pl-9 h-9 bg-background"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 px-3">
+                  Filter
+                  {(filters.hardwareType || filters.serverApplicationType || filters.technicianId || filters.operatingSystem) && (
+                    <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
+                      !
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-[200px]">
+                <DropdownMenuLabel>Filteroptionen</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+
+                {/* Hardware Type Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Hardware</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuRadioGroup
+                        value={filters.hardwareType || ""}
+                        onValueChange={(val) => setFilters(prev => ({ ...prev, hardwareType: val || null }))}
+                      >
+                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
+                        {hardwareTypes.map(type => (
+                          <DropdownMenuRadioItem key={type.id} value={type.value}>
+                            {type.label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                {/* Server App Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Server Typ</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuRadioGroup
+                        value={filters.serverApplicationType || ""}
+                        onValueChange={(val) => setFilters(prev => ({ ...prev, serverApplicationType: val || null }))}
+                      >
+                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
+                        {serverApplicationTypes.map(type => (
+                          <DropdownMenuRadioItem key={type.id} value={type.value}>
+                            {type.label}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                {/* Operating System Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Betriebssystem</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuRadioGroup
+                        value={filters.operatingSystem || ""}
+                        onValueChange={(val) => setFilters(prev => ({ ...prev, operatingSystem: val || null }))}
+                      >
+                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Windows">Windows</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Linux">Linux</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="Other">Andere</DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                {/* Technician Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Techniker</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuRadioGroup
+                        value={filters.technicianId || ""}
+                        onValueChange={(val) => setFilters(prev => ({ ...prev, technicianId: val || null }))}
+                      >
+                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="unassigned">Nicht zugewiesen</DropdownMenuRadioItem>
+                        {technicians.map(tech => (
+                          <DropdownMenuRadioItem key={tech.id} value={tech.id}>
+                            {tech.name}
+                          </DropdownMenuRadioItem>
+                        ))}
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onSelect={() => setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null })}
+                  className="justify-center text-center"
+                >
+                  Filter zurücksetzen
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {systemsLoading ? (
+          <div className="flex justify-center py-12">
+            <LoadingSpinner />
+          </div>
+        ) : filteredSystems.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+            {filteredSystems.map(system => (
+              <div key={system.id} className="h-full">
+                <SystemCard
+                  system={system}
+                  technicians={technicians}
+                  assignedTechnicianId={entry.systemTechnicianAssignments?.[system.id]?.[0]}
+                  onAssignTechnician={handleAssignTechnician}
+                  trackableItems={entry.systemTrackableItems?.[system.id] || {}}
+                  onUpdateTrackableItem={handleUpdateTrackableItem}
+                  onBulkUpdateTrackableItems={handleBulkUpdateTrackableItems}
+                  systemNote={entry.systemNotes?.[system.id] || ""}
+                  onUpdateSystemNote={handleUpdateSystemNote}
+                  isSystemSelected={selectedSystems.has(system.id)}
+                  onSystemSelectionChange={handleSystemSelectionChange}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 border rounded-lg bg-muted/10">
+            <p className="text-muted-foreground">Keine Systeme gefunden.</p>
+            <Button variant="link" onClick={() => { setSearchQuery(""); resetFilters(); }}>
+              Filter zurücksetzen
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Customer Maintenance Notes */}
+      <div className="space-y-4 pt-4 border-t">
+        <h2 className="text-lg font-semibold tracking-tight">Wartungsnotizen</h2>
+        <SimpleEditor
+          content={maintenanceNotes}
+          onContentChange={setMaintenanceNotes}
+        />
+        <div className="flex justify-end">
+          <Button onClick={handleSaveMaintenanceNotes} disabled={!entry.customer?.id}>
+            <Save className="mr-2 h-4 w-4" />
+            Speichern
+          </Button>
+        </div>
+      </div>
+
+      {/* Multi-System Bulk Update Bar */}
+      <MultiSystemBulkUpdateBar
+        selectedCount={selectedSystems.size}
+        allSystemsCount={filteredSystems.length}
+        allSelected={selectedSystems.size === filteredSystems.length && filteredSystems.length > 0}
+        technicians={technicians}
+        onToggleSelectAll={handleToggleSelectAll}
+        onBulkUpdate={handleCrossSystemBulkUpdate}
+        onBulkAssignTechnician={handleBulkAssignTechnician}
+        onClearSelection={() => setSelectedSystems(new Set())}
+      />
     </div>
   )
 }
-

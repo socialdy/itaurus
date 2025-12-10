@@ -50,7 +50,11 @@ export async function getMaintenanceEntryById(id: string) {
     const maintenanceEntry = await db.query.maintenance.findFirst({
       where: (maintenance, { eq }) => eq(maintenance.id, id),
       with: {
-        customer: true,
+        customer: {
+          with: {
+            contactPeople: true,
+          }
+        },
       },
       columns: {
         id: true,

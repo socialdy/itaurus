@@ -1,7 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
-import { AlertTriangle, CalendarDays, CheckCircle2, Clock, Filter } from "lucide-react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { AlertTriangle, Filter, PlusCircle, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
@@ -12,6 +14,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import {
@@ -22,7 +31,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { MaintenanceEntryForm, MaintenanceEntryFormData } from "@/components/ui/maintenance-entry-form"
+import { useSystemDefinitions } from "@/lib/system-definitions"
+import { PageHeader } from "@/components/ui/page-header"
+import { useSortableTable } from "@/hooks/use-sortable-table"
+import { SortableTableHead } from "@/components/ui/sortable-table-head"
 
 type MaintenanceStatus = "OK" | "Error" | "InProgress" | "NotApplicable" | "Planned"
 
@@ -31,8 +56,15 @@ type MaintenanceEntry = {
   title: string
   date: string
   status: MaintenanceStatus
+  customerId?: string
   customer?: { id: string; name: string; abbreviation: string }
+  systemIds?: string[] | null
+  technicianIds?: string[] | null
+  updatedAt?: string | null
 }
+
+type DialogCustomer = { id: string; name: string; abbreviation: string }
+type DialogSystem = { id: string; hostname: string; customerId: string }
 
 const statusLabel: Record<MaintenanceStatus, string> = {
   OK: "Abgeschlossen",
@@ -43,44 +75,81 @@ const statusLabel: Record<MaintenanceStatus, string> = {
 }
 
 export default function MaintenanceOverviewPage() {
+  const router = useRouter()
   const [entries, setEntries] = useState<MaintenanceEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [activeFilter, setActiveFilter] = useState<"all" | MaintenanceStatus>("all")
+  const [technicianFilter, setTechnicianFilter] = useState<string>("all")
+  const [customerFilter, setCustomerFilter] = useState<string>("all")
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
+  const [editingEntry, setEditingEntry] = useState<MaintenanceEntry | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [entryToDelete, setEntryToDelete] = useState<MaintenanceEntry | null>(null)
 
+  // Dialog data state - fetched on mount
+  const [dialogCustomers, setDialogCustomers] = useState<DialogCustomer[]>([])
+  const [dialogSystems, setDialogSystems] = useState<DialogSystem[]>([])
+  const [dialogLoading, setDialogLoading] = useState(true) // Initial loading for dialog data
+
+  const { definitions } = useSystemDefinitions()
+  const technicians = (definitions.technicians || []) as string[]
+
+  // Pagination state
+  const PAGE_SIZE = 15
+  const [page, setPage] = useState(1)
+
+  const fetchEntries = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch("/api/maintenance")
+      if (!response.ok) {
+        throw new Error("Wartungseinträge konnten nicht geladen werden.")
+      }
+      const data = (await response.json()) as MaintenanceEntry[]
+      setEntries(data)
+    } catch (fetchError: unknown) {
+      const message =
+        fetchError instanceof Error
+          ? fetchError.message
+          : "Unbekannter Fehler beim Laden der Wartungseinträge."
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  // Fetch main entries
   useEffect(() => {
-    let isMounted = true
-    const fetchEntries = async () => {
-      setLoading(true)
-      setError(null)
+    fetchEntries()
+  }, [fetchEntries])
+
+  // Prefetch dialog data on mount
+  useEffect(() => {
+    const loadDialogData = async () => {
       try {
-        const response = await fetch("/api/maintenance")
-        if (!response.ok) {
-          throw new Error("Wartungseinträge konnten nicht geladen werden.")
+        const [customersResponse, systemsResponse] = await Promise.all([
+          fetch("/api/customers"),
+          fetch("/api/systems"),
+        ])
+
+        if (customersResponse.ok && systemsResponse.ok) {
+          const customersData = (await customersResponse.json()) as DialogCustomer[]
+          const systemsData = (await systemsResponse.json()) as DialogSystem[]
+          setDialogCustomers(customersData)
+          setDialogSystems(systemsData)
+        } else {
+          console.error("Failed to prefetch dialog data")
         }
-        const data = (await response.json()) as MaintenanceEntry[]
-        if (isMounted) {
-          setEntries(data)
-        }
-      } catch (fetchError: unknown) {
-        if (!isMounted) return
-        const message =
-          fetchError instanceof Error
-            ? fetchError.message
-            : "Unbekannter Fehler beim Laden der Wartungseinträge."
-        setError(message)
+      } catch (error) {
+        console.error("Error prefetching dialog data:", error)
       } finally {
-        if (isMounted) {
-          setLoading(false)
-        }
+        setDialogLoading(false)
       }
     }
-
-    fetchEntries()
-    return () => {
-      isMounted = false
-    }
+    loadDialogData()
   }, [])
 
   const filteredEntries = useMemo(() => {
@@ -93,16 +162,22 @@ export default function MaintenanceOverviewPage() {
         entry.title.toLowerCase().includes(term) ||
         entry.customer?.name.toLowerCase().includes(term) ||
         entry.customer?.abbreviation.toLowerCase().includes(term)
-      return matchesFilter && matchesSearch
+      const matchesTechnician =
+        technicianFilter === "all" ? true : entry.technicianIds?.includes(technicianFilter)
+      const matchesCustomer =
+        customerFilter === "all" ? true : entry.customerId === customerFilter
+      return matchesFilter && matchesSearch && matchesTechnician && matchesCustomer
     })
-  }, [entries, activeFilter, searchTerm])
+  }, [entries, activeFilter, searchTerm, technicianFilter, customerFilter])
 
-  const stats = useMemo(() => {
-    const planned = entries.filter((entry) => entry.status === "Planned").length
-    const inProgress = entries.filter((entry) => entry.status === "InProgress").length
-    const completed = entries.filter((entry) => entry.status === "OK").length
-    return { planned, inProgress, completed }
-  }, [entries])
+  // Sorting
+  const { sortedData, sortConfig, requestSort } = useSortableTable(filteredEntries, "date" as keyof MaintenanceEntry)
+
+  // Pagination logic
+  const totalPages = Math.ceil(sortedData.length / PAGE_SIZE) || 1
+  const startIdx = (page - 1) * PAGE_SIZE
+  const endIdx = startIdx + PAGE_SIZE
+  const paginatedEntries = sortedData.slice(startIdx, endIdx)
 
   const renderStatusBadge = (status: MaintenanceStatus) => {
     const colorMap: Record<MaintenanceStatus, string> = {
@@ -119,146 +194,395 @@ export default function MaintenanceOverviewPage() {
     )
   }
 
+  const handleCreateMaintenance = () => {
+    setIsCreateDialogOpen(true)
+  }
+
+  const handleEditMaintenance = (entry: MaintenanceEntry, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setEditingEntry(entry)
+  }
+
+  const handleUpdateMaintenance = async (data: MaintenanceEntryFormData) => {
+    if (!editingEntry) return
+
+    try {
+      const response = await fetch(`/api/maintenance/${editingEntry.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: data.customerId,
+          systemIds: data.systemIds ?? [],
+          technicianIds: data.technicianIds ?? [],
+          date: data.date,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Wartung konnte nicht aktualisiert werden.")
+      }
+
+      toast.success("Wartung erfolgreich aktualisiert.")
+      setEditingEntry(null)
+      await fetchEntries()
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unbekannter Fehler beim Aktualisieren."
+      toast.error(message)
+    }
+  }
+
+  const handleDeleteMaintenance = async () => {
+    if (!entryToDelete) return
+
+    try {
+      const response = await fetch(`/api/maintenance/${entryToDelete.id}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Wartung konnte nicht gelöscht werden.")
+      }
+
+      toast.success("Wartung erfolgreich gelöscht.")
+      setDeleteDialogOpen(false)
+      setEntryToDelete(null)
+      await fetchEntries()
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : "Unbekannter Fehler beim Löschen."
+      toast.error(message)
+    }
+  }
+
+  const handleMaintenanceSubmit = async (data: MaintenanceEntryFormData) => {
+    try {
+      // We don't need to set dialogLoading here as it controls the form display, 
+      // and we want to keep the form visible while submitting or show a submitting state if the form supports it.
+      // For now, we just await the submit.
+      const response = await fetch("/api/maintenance?type=entry", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerId: data.customerId,
+          systemIds: data.systemIds ?? [],
+          technicianIds: data.technicianIds ?? [],
+          date: data.date,
+          status: "Planned",
+        }),
+      })
+      if (!response.ok) {
+        throw new Error("Wartung konnte nicht erstellt werden.")
+      }
+      toast.success("Wartung erfolgreich erstellt.")
+      setIsCreateDialogOpen(false)
+      // We don't clear dialog data here anymore as we want to keep it cached
+      await fetchEntries()
+    } catch (submitError: unknown) {
+      const message =
+        submitError instanceof Error ? submitError.message : "Unbekannter Fehler beim Speichern."
+      toast.error(message)
+    }
+  }
+
   return (
-    <div className="space-y-6 p-6">
+    <div className="h-full flex-1 flex-col space-y-6 overflow-x-hidden p-6">
       <Breadcrumb
         segments={[
           { name: "Dashboard", href: "/dashboard" },
           { name: "Wartungen" },
         ]}
+        className="mb-4"
       />
 
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Wartungsübersicht</h1>
-          <p className="text-sm text-muted-foreground">
-            Alle geplanten und laufenden Wartungsarbeiten im Überblick.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative">
-            <Input
-              placeholder="Wartung oder Kunde suchen..."
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              className="pl-9"
-            />
-            <Filter className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        title="Wartungsübersicht"
+        description="Hier können Sie alle Wartungen einsehen, verwalten und bearbeiten."
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <p className="text-xs uppercase text-muted-foreground">Geplant</p>
-            <CardTitle className="text-3xl">{stats.planned}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CalendarDays className="h-4 w-4" />
-            <span>Termine für kommende Wochen</span>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <p className="text-xs uppercase text-muted-foreground">
-              In Bearbeitung
-            </p>
-            <CardTitle className="text-3xl">{stats.inProgress}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>Aktuell laufende Wartungseinträge</span>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <p className="text-xs uppercase text-muted-foreground">
-              Abgeschlossen
-            </p>
-            <CardTitle className="text-3xl">{stats.completed}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-2 text-sm text-muted-foreground">
-            <CheckCircle2 className="h-4 w-4" />
-            <span>Erfolgreich abgeschlossene Einsätze</span>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Tabs value={activeFilter} onValueChange={(value) => setActiveFilter(value as typeof activeFilter)}>
-        <TabsList className="mb-4">
-          <TabsTrigger value="all">Alle Einträge</TabsTrigger>
-          <TabsTrigger value="Planned">Geplant</TabsTrigger>
-          <TabsTrigger value="InProgress">In Arbeit</TabsTrigger>
-          <TabsTrigger value="OK">Abgeschlossen</TabsTrigger>
-        </TabsList>
-        <TabsContent value={activeFilter} className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <div>
-                <CardTitle>Wartungsplan</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Gefiltert nach Status und Suchbegriff
-                </p>
+      <Card className="mt-6">
+        <CardHeader>
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <CardTitle>Wartungsplan</CardTitle>
+            <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+              <div className="relative w-full min-w-[220px] max-w-sm lg:w-56">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Titel oder Kunde suchen..."
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  className="pl-8"
+                />
               </div>
-              <Badge variant="outline">{filteredEntries.length} Einträge</Badge>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <LoadingSpinner />
-                </div>
-              ) : error ? (
-                <div className="flex flex-col items-center gap-3 py-12 text-center text-sm text-destructive">
-                  <AlertTriangle className="h-6 w-6" />
-                  <p>{error}</p>
-                  <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-                    Erneut versuchen
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline">
+                    Filter
                   </Button>
-                </div>
-              ) : filteredEntries.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">
-                  Keine Wartungseinträge für die aktuelle Auswahl gefunden.
-                </div>
-              ) : (
-                <div className="w-full overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Datum</TableHead>
-                        <TableHead>Beschreibung</TableHead>
-                        <TableHead>Kunde</TableHead>
-                        <TableHead className="text-right">Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredEntries.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell className="whitespace-nowrap">
-                            {new Date(entry.date).toLocaleString("de-AT", {
-                              dateStyle: "medium",
-                              timeStyle: "short",
-                            })}
-                          </TableCell>
-                          <TableCell className="font-medium">{entry.title}</TableCell>
-                          <TableCell>
-                            {entry.customer
-                              ? `${entry.customer.name} (${entry.customer.abbreviation})`
-                              : "–"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {renderStatusBadge(entry.status)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>Filtern nach</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Status</DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onSelect={() => setActiveFilter("all")}>
+                          Alle
+                        </DropdownMenuItem>
+                        {Object.entries(statusLabel).map(([key, label]) => (
+                          <DropdownMenuItem
+                            key={key}
+                            onSelect={() => setActiveFilter(key as MaintenanceStatus)}
+                          >
+                            {label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Techniker</DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuItem onSelect={() => setTechnicianFilter("all")}>
+                          Alle
+                        </DropdownMenuItem>
+                        {technicians.map((tech) => (
+                          <DropdownMenuItem
+                            key={tech}
+                            onSelect={() => setTechnicianFilter(tech)}
+                          >
+                            {tech}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Kunde</DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent className="max-h-[300px] overflow-y-auto">
+                        <DropdownMenuItem onSelect={() => setCustomerFilter("all")}>
+                          Alle
+                        </DropdownMenuItem>
+                        {dialogCustomers.sort((a, b) => a.abbreviation.localeCompare(b.abbreviation)).map((customer) => (
+                          <DropdownMenuItem
+                            key={customer.id}
+                            onSelect={() => setCustomerFilter(customer.id)}
+                          >
+                            {customer.abbreviation}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={() => {
+                    setActiveFilter("all")
+                    setTechnicianFilter("all")
+                    setCustomerFilter("all")
+                  }}>
+                    Filter zurücksetzen
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button onClick={handleCreateMaintenance} className="whitespace-nowrap">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Wartung erstellen
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner />
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-center text-sm text-destructive">
+              <AlertTriangle className="h-6 w-6" />
+              <p>{error}</p>
+              <Button variant="outline" size="sm" onClick={fetchEntries}>
+                Erneut versuchen
+              </Button>
+            </div>
+          ) : sortedData.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              Keine Wartungseinträge für die aktuelle Auswahl gefunden.
+            </div>
+          ) : (
+            <Table className="min-w-[800px]">
+              <TableHeader>
+                <TableRow className="border-b-2">
+                  <SortableTableHead<MaintenanceEntry>
+                    label="Datum"
+                    sortKey="date"
+                    currentSortKey={sortConfig.key}
+                    currentDirection={sortConfig.direction}
+                    onSort={requestSort}
+                    className="px-4 py-2 text-xs md:text-sm"
+                  />
+                  <SortableTableHead<MaintenanceEntry>
+                    label="Wartung"
+                    sortKey="title"
+                    currentSortKey={sortConfig.key}
+                    currentDirection={sortConfig.direction}
+                    onSort={requestSort}
+                    className="px-4 py-2 text-xs md:text-sm"
+                  />
+                  <TableHead className="px-4 py-2 text-xs md:text-sm">Kunde</TableHead>
+                  <TableHead className="px-4 py-2 text-xs md:text-sm">Techniker</TableHead>
+                  <SortableTableHead<MaintenanceEntry>
+                    label="Status"
+                    sortKey="status"
+                    currentSortKey={sortConfig.key}
+                    currentDirection={sortConfig.direction}
+                    onSort={requestSort}
+                    className="px-4 py-2 text-xs md:text-sm"
+                  />
+                  <TableHead className="px-4 py-2 text-xs md:text-sm text-right">Aktionen</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedEntries.map((entry) => (
+                  <TableRow
+                    key={entry.id}
+                    className="cursor-pointer"
+                    onClick={() => router.push(`/dashboard/maintenance/${entry.id}`)}
+                  >
+                    <TableCell className="px-4 py-3 text-xs md:text-sm whitespace-nowrap">
+                      {new Date(entry.date).toLocaleString("de-AT", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-xs md:text-sm font-medium">
+                      <div>{entry.title}</div>
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-xs md:text-sm">
+                      {entry.customer
+                        ? entry.customer.name
+                        : "–"}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-xs md:text-sm">
+                      {entry.technicianIds && entry.technicianIds.length > 0
+                        ? entry.technicianIds.join(", ")
+                        : "–"}
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-xs md:text-sm">{renderStatusBadge(entry.status)}</TableCell>
+                    <TableCell className="px-4 py-3 text-xs md:text-sm text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={(e) => handleEditMaintenance(entry, e)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Bearbeiten
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEntryToDelete(entry)
+                              setDeleteDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Löschen
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="mt-6 flex justify-center items-center gap-4">
+        <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Zurück</Button>
+        <span className="font-medium text-sm">Seite {page} / {totalPages}</span>
+        <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Weiter</Button>
+      </div>
+
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Neue Wartung</DialogTitle>
+            <DialogDescription>Plane eine neue Wartung und weise Systeme sowie Techniker zu.</DialogDescription>
+          </DialogHeader>
+          {dialogLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <MaintenanceEntryForm
+              customers={dialogCustomers}
+              systems={dialogSystems}
+              technicians={technicians}
+              onSubmit={handleMaintenanceSubmit}
+              onCancel={() => setIsCreateDialogOpen(false)}
+              submitButtonText="Wartung speichern"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Wartung bearbeiten</DialogTitle>
+            <DialogDescription>Bearbeiten Sie die Details der Wartung.</DialogDescription>
+          </DialogHeader>
+          {editingEntry && (
+            <MaintenanceEntryForm
+              initialData={{
+                id: editingEntry.id,
+                customerId: editingEntry.customerId,
+                systemIds: editingEntry.systemIds || [],
+                technicianIds: editingEntry.technicianIds || [],
+                date: editingEntry.date,
+              }}
+              customers={dialogCustomers}
+              systems={dialogSystems}
+              technicians={technicians}
+              onSubmit={handleUpdateMaintenance}
+              onCancel={() => setEditingEntry(null)}
+              submitButtonText="Änderungen speichern"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Wartung löschen</DialogTitle>
+            <DialogDescription>
+              Sind Sie sicher, dass Sie die Wartung "{entryToDelete?.title}" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteMaintenance}>
+              Löschen
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

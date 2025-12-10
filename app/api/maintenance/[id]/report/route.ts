@@ -1,9 +1,42 @@
 import { NextResponse } from "next/server";
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
 import { getMaintenanceEntryById } from "@/lib/data/maintenance";
 import { getSystemsByCustomerId } from "@/lib/data/system";
+import fs from 'fs';
+import path from 'path';
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+const CHECK_LABELS: Record<string, string> = {
+  'app_updates': 'App Updates',
+  'event_log': 'Event Log',
+  'exchange_update': 'Exchange Update',
+  'final_check': 'Final Check',
+  'os_updates': 'OS Updates',
+  'reboots': 'Reboots',
+  'Dienste': 'Dienste',
+  'sql_update': 'SQL Update',
+  'system_load': 'System Load',
+  'vmware_tools': 'VMware Tools',
+  'windowsUpdates': 'Windows Updates',
+  'events': 'Events geprüft',
+  'backup': 'Backup geprüft',
+  'diskSpace': 'Speicherplatz',
+  'exchange': 'Exchange Server',
+  'sql': 'SQL Server',
+  'firewall': 'Firewall',
+  'antivirus': 'Antivirus',
+  'hardware': 'Hardware',
+  'dhcp': 'DHCP',
+  'dns': 'DNS',
+  'ad': 'Active Directory',
+  'hyperv': 'Hyper-V',
+  'network': 'Netzwerk',
+  'ups': 'USV',
+  'raid': 'RAID',
+  'services': 'Dienste',
+  'other': 'Sonstiges'
+};
 
 export async function GET(_req: Request, { params }: RouteContext) {
   try {
@@ -15,134 +48,227 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-    const margin = 50;
-
-    const tocPage = doc.addPage();
-    const { width, height } = tocPage.getSize();
-
-    // Header: Logo wird bewusst NICHT mehr gezeichnet (Clean Header ohne Wasserzeichen)
-    // Moderner Blockheader
-    const headY = height - margin - 20;
-    tocPage.drawText(`Wartungsbericht`, { x: margin, y: headY, size: 26, font: fontBold });
-    let metaY = headY - 32;
-    tocPage.drawText(`Kunde: ${maint.customer?.name || ''}`, { x: margin, y: metaY, size: 13, font });
-    metaY -= 16;
-    tocPage.drawText(`Wartung: ${maint.title || ''}`, { x: margin, y: metaY, size: 13, font });
-    metaY -= 16;
-    tocPage.drawText(`Datum: ${new Date(maint.date).toLocaleDateString('de-AT')}`, { x: margin, y: metaY, size: 13, font });
-    metaY -= 16;
-    tocPage.drawText(`Service Manager: ${maint.customer?.serviceManager || '-'}`, { x: margin, y: metaY, size: 13, font });
-    metaY -= 16;
-    tocPage.drawText(`Abrechnungscode: ${maint.customer?.billingCode || '-'}`, { x: margin, y: metaY, size: 13, font });
-    metaY -= 16;
-    if (Array.isArray(maint.technicianIds) && maint.technicianIds.length) {
-      tocPage.drawText(`Techniker (gesamt): ${maint.technicianIds.join(', ')}`, { x: margin, y: metaY, size: 13, font });
-      metaY -= 16;
+    // Load Logo
+    let logoImage;
+    try {
+      // PDF-Lib does not support SVG directly. Using PNG.
+      const logoPath = path.join(process.cwd(), 'public', 'itaurus-logo-black.png');
+      if (fs.existsSync(logoPath)) {
+        const logoBytes = fs.readFileSync(logoPath);
+        if (logoPath.endsWith('.png')) {
+          logoImage = await doc.embedPng(logoBytes);
+        } else if (logoPath.endsWith('.jpg') || logoPath.endsWith('.jpeg')) {
+          logoImage = await doc.embedJpg(logoBytes);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load logo:", e);
     }
-    metaY -= 6;
 
-    if (maint.notes) {
-      tocPage.drawText(`Notiz: ${maint.notes.replace(/\s+/g, ' ').slice(0, 220)}`, { x: margin, y: metaY, size: 12, font, color: rgb(0.25, 0.25, 0.25) });
-      metaY -= 18;
-    }
-    // Linie unter Meta-Infos
-    const metaLineY = metaY - 6;
-    tocPage.drawLine({start: {x: margin, y: metaLineY}, end: {x: width - margin, y: metaLineY}, thickness: 1, color: rgb(0.8,0.8,0.8)});
+    // A4 Landscape
+    const width = 841.89;
+    const height = 595.28;
+    const margin = 30;
 
-    // Statuslegende weiter nach unten
-    const legendYStart = metaLineY - 48;
-    const chip = (x: number, y: number, label: string, color: { r: number; g: number; b: number }) => {
-      const w = 14, h = 8;
-      tocPage.drawRectangle({ x, y: y + 2, width: w, height: h, color: rgb(color.r, color.g, color.b), borderColor: rgb(color.r, color.g, color.b) });
-      tocPage.drawText(label, { x: x + w + 6, y, size: 11, font });
+    // Helper to add a new page with header
+    const addPageWithHeader = (pageIndex: number) => {
+      const page = doc.addPage([width, height]);
+
+      let currentY = height - margin;
+
+      if (pageIndex === 0) {
+        // Logo Top Right
+        if (logoImage) {
+          const maxWidth = 150;
+          const maxHeight = 60;
+          const scale = Math.min(maxWidth / logoImage.width, maxHeight / logoImage.height);
+          const logoDims = logoImage.scale(scale);
+
+          page.drawImage(logoImage, {
+            x: width - margin - logoDims.width,
+            y: height - margin - logoDims.height,
+            width: logoDims.width,
+            height: logoDims.height,
+          });
+        }
+
+        // Title
+        currentY -= 20; // Add top margin
+        page.drawText(`Wartungsbericht`, { x: margin, y: currentY, size: 22, font: fontBold });
+        currentY -= 35; // Increased spacing
+
+        const metaFontSize = 9;
+        const metaLineHeight = 14; // Increased line height
+
+        // Left Column Meta
+        let metaLeftY = currentY;
+        page.drawText(`Kunde: ${maint.customer?.name || ''}`, { x: margin, y: metaLeftY, size: metaFontSize, font });
+        metaLeftY -= metaLineHeight;
+        page.drawText(`Wartung: ${maint.title || ''}`, { x: margin, y: metaLeftY, size: metaFontSize, font });
+        metaLeftY -= metaLineHeight;
+        page.drawText(`Datum: ${new Date(maint.date).toLocaleDateString('de-AT')}`, { x: margin, y: metaLeftY, size: metaFontSize, font });
+
+        // Right Column Meta (offset by 300)
+        let metaRightY = currentY;
+        const rightColX = margin + 300;
+        page.drawText(`Service Manager: ${maint.customer?.serviceManager || '-'}`, { x: rightColX, y: metaRightY, size: metaFontSize, font });
+        metaRightY -= metaLineHeight;
+        page.drawText(`Abrechnungscode: ${maint.customer?.billingCode || '-'}`, { x: rightColX, y: metaRightY, size: metaFontSize, font });
+        metaRightY -= metaLineHeight;
+        if (Array.isArray(maint.technicianIds) && maint.technicianIds.length) {
+          page.drawText(`Techniker: ${maint.technicianIds.join(', ')}`, { x: rightColX, y: metaRightY, size: metaFontSize, font });
+        }
+
+        currentY = Math.min(metaLeftY, metaRightY) - 25; // Increased spacing
+
+        // Notes
+        if (maint.notes) {
+          const cleanNotes = maint.notes.replace(/\s+/g, ' ').slice(0, 300);
+          page.drawText(`Notiz: ${cleanNotes}`, { x: margin, y: currentY, size: metaFontSize, font, color: rgb(0.25, 0.25, 0.25) });
+          currentY -= 30; // Increased spacing
+        } else {
+          currentY -= 10;
+        }
+      } else {
+        // Minimal header for subsequent pages
+        page.drawText(`Wartungsbericht - ${maint.customer?.name} (Seite ${pageIndex + 1})`, { x: margin, y: currentY, size: 10, font: fontBold, color: rgb(0.5, 0.5, 0.5) });
+        currentY -= 30;
+      }
+
+      return { page, startY: currentY };
     };
-    tocPage.drawText('Statuslegende', { x: margin, y: legendYStart + 20, size: 14, font: fontBold });
-    chip(margin, legendYStart, 'OK', { r: 0, g: 0.6, b: 0 });
-    chip(margin + 120, legendYStart, 'Fehler', { r: 0.85, g: 0.1, b: 0.1 });
-    chip(margin + 240, legendYStart, 'In Arbeit', { r: 0.9, g: 0.6, b: 0 });
-    chip(margin + 360, legendYStart, 'N/A', { r: 0.5, g: 0.5, b: 0.5 });
 
-    // TOC etwas luftiger
-    let y = legendYStart - 36;
-    tocPage.drawText('Inhaltsverzeichnis (Systeme):', { x: margin, y, size: 14, font: fontBold });
-    y -= 18;
-
+    // --- Data Preparation ---
     const allSystems = maint.customerId ? await getSystemsByCustomerId(maint.customerId) : [];
     const systemIds = (maint.systemIds || allSystems.map(s => s.id));
 
-    const tocEntries: { name: string; page: number }[] = [];
+    // Collect all unique check keys
+    const allCheckKeys = new Set<string>();
+    for (const sysId of systemIds) {
+      const items = maint.systemTrackableItems?.[sysId] || {};
+      Object.keys(items).forEach(k => allCheckKeys.add(k));
+    }
+    const checkColumns = Array.from(allCheckKeys).sort();
 
-    // Per-system pages with status summary chips
-    for (const [idx, sysId] of systemIds.entries()) {
-      const sys = allSystems.find(s => s.id === sysId);
-      const sysName = sys?.hostname || `System ${idx + 1}`;
+    // --- Layout Constants ---
+    const sysNameColWidth = 180;
+    const checkColWidth = 25;
+    const rowHeight = 18;
 
-      const page = doc.addPage();
-      const { height: ph } = page.getSize();
+    // --- Render ---
+    let { page, startY } = addPageWithHeader(0);
+    let currentY = startY;
 
-      page.drawText(sysName, { x: margin, y: ph - margin - 24, size: 20, font: fontBold });
-      page.drawText(`IP: ${sys?.ipAddress || '-'}`, { x: margin, y: ph - margin - 48, size: 12, font });
-      page.drawText(`Beschreibung: ${sys?.description || '-'}`, { x: margin, y: ph - margin - 66, size: 12, font });
-      const sysTechs = (maint.systemTechnicianAssignments?.[sysId] || []) as string[];
-      page.drawText(`Zuständiger Techniker: ${sysTechs.length ? sysTechs.join(', ') : '-'}`, { x: margin, y: ph - margin - 84, size: 12, font });
+    // Draw Table Header
+    const drawTableHeader = (p: any, y: number) => {
+      // System Name Header
+      p.drawText("System", { x: margin, y: y, size: 10, font: fontBold });
 
-      const items = maint.systemTrackableItems?.[sysId] || {} as Record<string, string | undefined>;
-      const groups: Record<'OK' | 'ERR' | 'IP' | 'NA', string[]> = { OK: [], ERR: [], IP: [], NA: [] };
-      for (const [k, v] of Object.entries(items)) {
-        if (v === 'OK' || v === 'ERR' || v === 'IP' || v === 'NA') groups[v].push(k);
+      // Check Headers (Rotated)
+      let colX = margin + sysNameColWidth;
+      for (const check of checkColumns) {
+        const label = CHECK_LABELS[check] || check;
+        p.drawText(label, {
+          x: colX + 10,
+          y: y + 5,
+          size: 8,
+          font: fontBold,
+          rotate: { type: 'degrees', angle: 90 }
+        });
+        colX += checkColWidth;
+      }
+      return y;
+    };
+
+    // Reserve space for headers (approx 100px for rotated text)
+    currentY -= 90;
+    drawTableHeader(page, currentY);
+
+    // Line below header
+    page.drawLine({ start: { x: margin, y: currentY - 5 }, end: { x: width - margin, y: currentY - 5 }, thickness: 1, color: rgb(0, 0, 0) });
+    currentY -= 20;
+
+    // Draw Rows
+    for (const sysId of systemIds) {
+      if (currentY < margin + 20) {
+        const res = addPageWithHeader(doc.getPageCount());
+        page = res.page;
+        currentY = res.startY - 90;
+        drawTableHeader(page, currentY);
+        page.drawLine({ start: { x: margin, y: currentY - 5 }, end: { x: width - margin, y: currentY - 5 }, thickness: 1, color: rgb(0, 0, 0) });
+        currentY -= 20;
       }
 
-      // Horizontal chips summary
-      const chipRowY = ph - margin - 108;
-      const chipDraw = (x: number, label: string, count: number, color: { r: number; g: number; b: number }) => {
-        const text = `${label}: ${count}`;
-        page.drawRectangle({ x, y: chipRowY - 2, width: 80, height: 14, color: rgb(color.r, color.g, color.b), opacity: 0.15, borderColor: rgb(color.r, color.g, color.b) });
-        page.drawText(text, { x: x + 6, y: chipRowY + 1, size: 10, font: fontBold, color: rgb(color.r, color.g, color.b) });
-      };
-      chipDraw(margin, 'OK', groups.OK.length, { r: 0, g: 0.6, b: 0 });
-      chipDraw(margin + 90, 'Fehler', groups.ERR.length, { r: 0.85, g: 0.1, b: 0.1 });
-      chipDraw(margin + 180, 'In Arbeit', groups.IP.length, { r: 0.9, g: 0.6, b: 0 });
-      chipDraw(margin + 300, 'N/A', groups.NA.length, { r: 0.5, g: 0.5, b: 0.5 });
+      const sys = allSystems.find(s => s.id === sysId);
+      const sysName = sys?.hostname || 'Unknown';
 
-      // Detailed groups list
-      let y2 = ph - margin - 136;
-      const drawGroup = (title: string, color: { r: number; g: number; b: number }, keys: string[]) => {
-        if (!keys.length) return;
-        page.drawText(title, { x: margin, y: y2, size: 14, font: fontBold, color: rgb(color.r, color.g, color.b) });
-        y2 -= 16;
-        for (const key of keys) {
-          page.drawText(`• ${key}`, { x: margin + 12, y: y2, size: 12, font });
-          y2 -= 14;
-          if (y2 < margin + 40) {
-            y2 = ph - margin - 40;
-          }
+      // System Name
+      const maxNameChars = 30;
+      const displayName = sysName.length > maxNameChars ? sysName.substring(0, maxNameChars) + '...' : sysName;
+      page.drawText(displayName, { x: margin, y: currentY, size: 9, font });
+
+      // Check Cells
+      let colX = margin + sysNameColWidth;
+      const items = maint.systemTrackableItems?.[sysId] || {};
+
+      for (const check of checkColumns) {
+        let status = items[check];
+
+        // Logic: Force N/A for Exchange/SQL if not relevant
+        const checkLower = check.toLowerCase();
+        const isExchangeCheck = checkLower.includes('exchange');
+        const isSqlCheck = checkLower.includes('sql');
+
+        if (isExchangeCheck) {
+          const isExchangeServer = sys?.serverApplicationType === 'EXCHANGE' || sys?.installedSoftware?.some(s => s.toLowerCase().includes('exchange'));
+          if (!isExchangeServer) status = undefined;
         }
-        y2 -= 8;
-      };
+        if (isSqlCheck) {
+          const isSqlServer = sys?.serverApplicationType === 'SQL' || sys?.installedSoftware?.some(s => s.toLowerCase().includes('sql'));
+          if (!isSqlServer) status = undefined;
+        }
 
-      drawGroup('OK', { r: 0, g: 0.6, b: 0 }, groups.OK);
-      drawGroup('Fehler', { r: 0.85, g: 0.1, b: 0.1 }, groups.ERR);
-      drawGroup('In Arbeit', { r: 0.9, g: 0.6, b: 0 }, groups.IP);
-      drawGroup('N/A', { r: 0.5, g: 0.5, b: 0.5 }, groups.NA);
+        const boxSize = 10;
+        const boxY = currentY;
+        const boxX = colX + 2;
 
-      tocEntries.push({ name: sysName, page: doc.getPageCount() });
+        if (status === 'OK') {
+          // Green Box + Vector Check
+          page.drawRectangle({ x: boxX, y: boxY, width: boxSize, height: boxSize, color: rgb(0.8, 1, 0.8), borderColor: rgb(0, 0.6, 0), borderWidth: 0.5 });
+          page.drawLine({ start: { x: boxX + 2, y: boxY + 5 }, end: { x: boxX + 4, y: boxY + 2 }, thickness: 1, color: rgb(0, 0.4, 0) });
+          page.drawLine({ start: { x: boxX + 4, y: boxY + 2 }, end: { x: boxX + 8, y: boxY + 8 }, thickness: 1, color: rgb(0, 0.4, 0) });
+        } else if (status === 'Error') {
+          // Red Box + Vector X
+          page.drawRectangle({ x: boxX, y: boxY, width: boxSize, height: boxSize, color: rgb(1, 0.8, 0.8), borderColor: rgb(0.8, 0, 0), borderWidth: 0.5 });
+          page.drawLine({ start: { x: boxX + 2, y: boxY + 2 }, end: { x: boxX + 8, y: boxY + 8 }, thickness: 1, color: rgb(0.8, 0, 0) });
+          page.drawLine({ start: { x: boxX + 2, y: boxY + 8 }, end: { x: boxX + 8, y: boxY + 2 }, thickness: 1, color: rgb(0.8, 0, 0) });
+        } else if (status === 'InProgress') {
+          // Orange Box + Vector Circle
+          page.drawRectangle({ x: boxX, y: boxY, width: boxSize, height: boxSize, color: rgb(1, 0.9, 0.7), borderColor: rgb(0.9, 0.5, 0), borderWidth: 0.5 });
+          page.drawEllipse({ x: boxX + 5, y: boxY + 5, xScale: 3, yScale: 3, borderColor: rgb(0.9, 0.5, 0), borderWidth: 1, color: undefined });
+        } else {
+          // N/A or NotDone - Grey Box + Dash
+          page.drawRectangle({ x: boxX, y: boxY, width: boxSize, height: boxSize, color: rgb(0.95, 0.95, 0.95), borderColor: rgb(0.7, 0.7, 0.7), borderWidth: 0.5 });
+          page.drawLine({ start: { x: boxX + 3, y: boxY + 5 }, end: { x: boxX + 7, y: boxY + 5 }, thickness: 1, color: rgb(0.5, 0.5, 0.5) });
+        }
+
+        colX += checkColWidth;
+      }
+
+      // Horizontal Line for row
+      page.drawLine({ start: { x: margin, y: currentY - 4 }, end: { x: width - margin, y: currentY - 4 }, thickness: 0.5, color: rgb(0.9, 0.9, 0.9) });
+
+      currentY -= rowHeight;
     }
 
-    for (const entry of tocEntries) {
-      if (y < margin + 40) break;
-      const label = `${entry.name}  ......  Seite ${entry.page}`;
-      tocPage.drawText(label, { x: margin, y, size: 12, font });
-      // Unterstreichung für frischen Look
-      const textWidth = font.widthOfTextAtSize(label, 12);
-      tocPage.drawLine({ start: { x: margin, y: y - 2 }, end: { x: margin + textWidth, y: y - 2 }, thickness: 0.5, color: rgb(0.85,0.85,0.85) });
-      y -= 14;
+    // Legend
+    if (currentY > margin + 40) {
+      currentY -= 20;
+      page.drawText('Legende: [OK] OK   [X] Fehler   [O] In Arbeit   [-] N/A', { x: margin, y: currentY, size: 9, font, color: rgb(0.4, 0.4, 0.4) });
     }
 
     const pdfBytes = await doc.save();
-    // Convert Uint8Array to ArrayBuffer for NextResponse compatibility
-    const arrayBuffer = new ArrayBuffer(pdfBytes.length);
-    new Uint8Array(arrayBuffer).set(pdfBytes);
-    return new NextResponse(arrayBuffer, {
+    return new NextResponse(pdfBytes, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
@@ -154,4 +280,4 @@ export async function GET(_req: Request, { params }: RouteContext) {
     console.error("Error generating maintenance PDF:", message, error);
     return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
-} 
+}

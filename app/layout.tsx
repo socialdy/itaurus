@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
 // Placeholder imports - adjust paths as needed
-import { Toaster } from "@/components/ui/sonner"; 
+import { Toaster } from "@/components/ui/sonner";
 // import { ScreenSize } from "@/components/dev/screen-size"; 
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -47,7 +47,7 @@ export default function RootLayout({
         <link rel="icon" type="image/x-icon" href="/favicon.ico" />
         <title>iTaurus Wartungsmanagement</title>
       </head>
-      <body className={`${inter.variable} font-sans antialiased overflow-hidden`}>
+      <body className={`${inter.variable} font-sans antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

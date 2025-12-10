@@ -5,10 +5,43 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const containerRef = React.useRef<HTMLDivElement>(null)
+  const [isDragging, setIsDragging] = React.useState(false)
+  const [startX, setStartX] = React.useState(0)
+  const [scrollLeft, setScrollLeft] = React.useState(0)
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!containerRef.current) return
+    setIsDragging(true)
+    setStartX(e.pageX - containerRef.current.offsetLeft)
+    setScrollLeft(containerRef.current.scrollLeft)
+  }
+
+  const onMouseLeave = () => {
+    setIsDragging(false)
+  }
+
+  const onMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !containerRef.current) return
+    e.preventDefault()
+    const x = e.pageX - containerRef.current.offsetLeft
+    const walk = (x - startX) * 2 // scroll-fast
+    containerRef.current.scrollLeft = scrollLeft - walk
+  }
+
   return (
     <div
+      ref={containerRef}
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full overflow-x-auto cursor-grab active:cursor-grabbing"
+      onMouseDown={onMouseDown}
+      onMouseLeave={onMouseLeave}
+      onMouseUp={onMouseUp}
+      onMouseMove={onMouseMove}
     >
       <table
         data-slot="table"

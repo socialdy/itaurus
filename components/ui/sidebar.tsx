@@ -50,7 +50,17 @@ const NavItem = ({ href, label, icon, isActive, onNavigate }: NavItemProps) => (
   </Link>
 )
 
-export function Sidebar() {
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+
+interface SidebarProps {
+  user?: {
+    name?: string | null
+    email?: string | null
+    image?: string | null
+  } | null
+}
+
+export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
@@ -124,31 +134,45 @@ export function Sidebar() {
     </nav>
   )
 
+  const handleLogout = async () => {
+    await authClient.signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          router.push("/login")
+          if (isMobile) setIsOpen(false)
+        },
+      },
+    })
+  }
+
   const SidebarContent = () => (
     <div className="flex h-full flex-col bg-zinc-900">
       <SidebarHeader />
       <SidebarNav />
-      <div className="border-t border-white/10 my-2" />
-      <div className="px-2 pb-4">
+
+      <div className="mt-auto border-t border-white/10 p-4">
+        <div className="flex items-center gap-3 mb-4">
+          <Avatar className="h-9 w-9 border border-white/10">
+            <AvatarImage src={user?.image || undefined} />
+            <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs">
+              {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0 overflow-hidden">
+            <span className="text-sm font-medium text-white truncate">{user?.name || 'Benutzer'}</span>
+            <span className="text-xs text-zinc-400 truncate">{user?.email || ''}</span>
+          </div>
+        </div>
+
         <Button
           variant="ghost"
           className={cn(
-            "w-full justify-start gap-4 text-sm px-4 py-3 h-auto transition-all duration-200",
+            "w-full justify-start gap-4 text-sm px-4 py-2 h-auto transition-all duration-200",
             "text-zinc-400 hover:text-white hover:bg-white/10",
             "active:scale-[0.98]",
-            pathname === "/logout" && "bg-white/15 text-white font-medium",
             "cursor-pointer"
           )}
-          onClick={async () => {
-            await authClient.signOut({
-              fetchOptions: {
-                onSuccess: () => {
-                  router.push("/login")
-                  if (isMobile) setIsOpen(false)
-                },
-              },
-            })
-          }}
+          onClick={handleLogout}
         >
           <LogOut className="h-[18px] w-[18px] stroke-[1.5px]" />
           <span className="font-medium">Ausloggen</span>
@@ -180,7 +204,7 @@ export function Sidebar() {
             </Link>
             <span className="text-lg font-semibold text-white">iTaurus</span>
           </div>
-          
+
           <Sheet open={isOpen} onOpenChange={setIsOpen}>
             <SheetTrigger asChild>
               <Button
@@ -192,8 +216,8 @@ export function Sidebar() {
                 <span className="sr-only">Menü öffnen</span>
               </Button>
             </SheetTrigger>
-            <SheetContent 
-              side="left" 
+            <SheetContent
+              side="left"
               className="w-[280px] p-0 border-r-0 bg-zinc-900"
               onInteractOutside={() => setIsOpen(false)}
             >
@@ -202,7 +226,7 @@ export function Sidebar() {
             </SheetContent>
           </Sheet>
         </header>
-        
+
         {/* Content Padding for Fixed Header */}
         <div className="h-16" />
       </div>

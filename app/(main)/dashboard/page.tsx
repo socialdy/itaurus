@@ -7,6 +7,7 @@ import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { MaintenanceEntryForm, MaintenanceEntryFormData } from "@/components/ui/maintenance-entry-form"
@@ -249,8 +250,8 @@ export default function DashboardPage() {
       const tasksForDay = maintenanceTasksForCalendar.filter(entry => {
         const entryDate = new Date(entry.date);
         return entryDate.getDate() === day &&
-               entryDate.getMonth() === currentMonth &&
-               entryDate.getFullYear() === currentYear;
+          entryDate.getMonth() === currentMonth &&
+          entryDate.getFullYear() === currentYear;
       });
 
       const isToday = currentDate.toDateString() === today.toDateString();
@@ -258,33 +259,37 @@ export default function DashboardPage() {
       days.push(
         <div
           key={day}
-          className={`h-20 min-h-[5rem] border rounded-md p-1 overflow-y-auto transition-colors ${
-            isToday
-              ? 'bg-blue-50 border-blue-200'
-              : 'bg-background/50 border-border/40 hover:bg-muted/50'
-          }`}
+          className={`h-24 min-h-[6rem] border rounded-xl p-2 overflow-y-auto transition-all ${isToday
+            ? 'bg-primary/5 border-primary ring-1 ring-primary/20'
+            : 'bg-card hover:bg-muted/30 hover:border-primary/20'
+            }`}
         >
-          <div className="flex justify-between items-start">
-            <span className={`text-sm font-medium ${isToday ? 'text-blue-600' : ''}`}>{day}</span>
+          <div className="flex justify-between items-start mb-1.5">
+            <span className={`text-sm font-medium h-6 w-6 flex items-center justify-center rounded-full ${isToday ? 'bg-primary text-primary-foreground' : 'text-muted-foreground'}`}>{day}</span>
           </div>
-          <div className="mt-1 space-y-1">
+          <div className="space-y-1">
             {tasksForDay.map(entry => (
               <div
                 key={entry.id}
-                className={`
-                  text-xs truncate rounded px-1.5 py-0.5 cursor-pointer
-                  ${
-                  entry.status === 'OK' ? 'bg-green-100 text-green-800' :
-                  entry.status === 'Error' ? 'bg-red-100 text-red-800' :
-                  entry.status === 'InProgress' ? 'bg-blue-100 text-blue-800' :
-                  entry.status === 'NotApplicable' ? 'bg-gray-100 text-gray-800' :
-                  entry.status === 'Planned' ? 'bg-purple-100 text-purple-800' :
-                  entry.status === 'NotDone' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-blue-100 text-blue-800' // Default case
-                }`}
                 onClick={() => openTaskDetails(entry.id)}
+                className="cursor-pointer group"
               >
-                {entry.title}
+                <Badge
+                  variant="outline"
+                  className={`
+                    w-full justify-start font-normal text-[10px] px-1.5 py-0.5 h-auto truncate border
+                    ${entry.status === 'OK' ? 'bg-emerald-500/10 text-emerald-700 border-emerald-200 hover:bg-emerald-500/20' :
+                      entry.status === 'Error' ? 'bg-red-500/10 text-red-700 border-red-200 hover:bg-red-500/20' :
+                        entry.status === 'InProgress' ? 'bg-blue-500/10 text-blue-700 border-blue-200 hover:bg-blue-500/20' :
+                          entry.status === 'NotApplicable' ? 'bg-slate-500/10 text-slate-700 border-slate-200 hover:bg-slate-500/20' :
+                            entry.status === 'Planned' ? 'bg-amber-500/10 text-amber-700 border-amber-200 hover:bg-amber-500/20' :
+                              entry.status === 'NotDone' ? 'bg-orange-500/10 text-orange-700 border-orange-200 hover:bg-orange-500/20' :
+                                'bg-slate-100 text-slate-800'
+                    }
+                  `}
+                >
+                  {entry.title}
+                </Badge>
               </div>
             ))}
           </div>
@@ -311,13 +316,15 @@ export default function DashboardPage() {
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-7 gap-2 rounded-md border p-4">
-          {weekdays.map(day => (
-            <div key={day} className="h-8 flex items-center justify-center font-medium text-sm text-foreground border-b border-border/40 mb-2">
-              {day}
-            </div>
-          ))}
-          {days}
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-7 gap-2 rounded-md border p-4 min-w-[800px]">
+            {weekdays.map(day => (
+              <div key={day} className="h-8 flex items-center justify-center font-medium text-sm text-foreground border-b border-border/40 mb-2">
+                {day}
+              </div>
+            ))}
+            {days}
+          </div>
         </div>
       </div>
     );
@@ -325,65 +332,65 @@ export default function DashboardPage() {
 
   return (
     <div className="h-full flex-1 flex-col space-y-6 overflow-x-hidden p-6">
-      <PageHeader 
+      <PageHeader
         title="Dashboard"
         description="Willkommen zurück! Hier sehen Sie eine Übersicht Ihrer Wartungen."
       />
       {/* Statistik-Karten (farbig, größere Icons und Flächen) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-6">
-        <Card className="text-card-foreground flex flex-col gap-4 rounded-xl p-6 overflow-hidden shadow-md bg-gradient-to-br from-blue-50 to-slate-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-0">
-            <CardTitle className="text-sm font-semibold">Geplante Wartungen</CardTitle>
-            <div className="h-9 w-9 rounded-full flex items-center justify-center bg-blue-100">
-              <CalendarDays className="h-5 w-5 text-blue-600" />
+        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Geplante Wartungen</CardTitle>
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-blue-500/10">
+              <CalendarDays className="h-4 w-4 text-blue-600" />
             </div>
           </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-3xl font-bold text-blue-600">{upcomingCount}</div>
+          <CardContent className="p-6 pt-0">
+            <div className="text-2xl font-bold text-foreground">{upcomingCount}</div>
           </CardContent>
         </Card>
-        <Card className="text-card-foreground flex flex-col gap-4 rounded-xl p-6 overflow-hidden shadow-md bg-gradient-to-br from-yellow-50 to-slate-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-0">
-            <CardTitle className="text-sm font-semibold">Offene Wartungen</CardTitle>
-            <div className="h-9 w-9 rounded-full flex items-center justify-center bg-yellow-100">
-              <Clock className="h-5 w-5 text-yellow-600" />
+        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Offene Wartungen</CardTitle>
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-amber-500/10">
+              <Clock className="h-4 w-4 text-amber-600" />
             </div>
           </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-3xl font-bold text-yellow-600">{inProgressCount}</div>
+          <CardContent className="p-6 pt-0">
+            <div className="text-2xl font-bold text-foreground">{inProgressCount}</div>
           </CardContent>
         </Card>
-        <Card className="text-card-foreground flex flex-col gap-4 rounded-xl p-6 overflow-hidden shadow-md bg-gradient-to-br from-orange-50 to-slate-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-0">
-            <CardTitle className="text-sm font-semibold">Heute anstehend</CardTitle>
-            <div className="h-9 w-9 rounded-full flex items-center justify-center bg-orange-100">
-              <AlertCircle className="h-5 w-5 text-orange-600" />
+        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Heute anstehend</CardTitle>
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-orange-500/10">
+              <AlertCircle className="h-4 w-4 text-orange-600" />
             </div>
           </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-3xl font-bold text-orange-600">{maintenanceTasksForCalendar.filter(entry => new Date(entry.date).toDateString() === today.toDateString() && entry.status === 'Planned').length}</div>
+          <CardContent className="p-6 pt-0">
+            <div className="text-2xl font-bold text-foreground">{maintenanceTasksForCalendar.filter(entry => new Date(entry.date).toDateString() === today.toDateString() && entry.status === 'Planned').length}</div>
           </CardContent>
         </Card>
-        <Card className="text-card-foreground flex flex-col gap-4 rounded-xl p-6 overflow-hidden shadow-md bg-gradient-to-br from-emerald-50 to-slate-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-0">
-            <CardTitle className="text-sm font-semibold">Abgeschlossen</CardTitle>
-            <div className="h-9 w-9 rounded-full flex items-center justify-center bg-emerald-100">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Abgeschlossen</CardTitle>
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-500/10">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
             </div>
           </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-3xl font-bold text-emerald-600">{completedCount}</div>
+          <CardContent className="p-6 pt-0">
+            <div className="text-2xl font-bold text-foreground">{completedCount}</div>
           </CardContent>
         </Card>
-        <Card className="text-card-foreground flex flex-col gap-4 rounded-xl p-6 overflow-hidden shadow-md bg-gradient-to-br from-red-50 to-slate-50">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-0">
-            <CardTitle className="text-sm font-semibold">Verpasste Wartungen</CardTitle>
-            <div className="h-9 w-9 rounded-full flex items-center justify-center bg-red-100">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
+        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Verpasste Wartungen</CardTitle>
+            <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-red-500/10">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
             </div>
           </CardHeader>
-          <CardContent className="p-0 pt-2">
-            <div className="text-3xl font-bold text-red-600">{overdueCount}</div>
+          <CardContent className="p-6 pt-0">
+            <div className="text-2xl font-bold text-foreground">{overdueCount}</div>
           </CardContent>
         </Card>
       </div>

@@ -6,25 +6,25 @@ export const maintenanceItemStatus = pgEnum("maintenance_item_status", ['OK', 'E
 // New enum definitions for System table
 export const hardwareTypeEnum = pgEnum('hardware_type', ['PHYSICAL', 'VIRTUAL']);
 export const operatingSystemEnum = pgEnum('operating_system', [
-  'WIN_SVR_2012_R2', 'WIN_SVR_2016', 'WIN_SVR_2019', 'WIN_SVR_2022', 'WIN_SVR_2025',
-  'WIN_10', 'WIN_11',
-  'DEBIAN_10', 'DEBIAN_11', 'DEBIAN_12',
-  'CENTOS_7', 'CENTOS_8', 'CENTOS_9',
-  'UBUNTU_18', 'UBUNTU_20', 'UBUNTU_22',
-  'AMAZON_LINUX_2', 'AMAZON_LINUX_2023',
-  'LINUX', 'MACOS', 'ESXI',
-  'OTHER_OS'
+	'WIN_SVR_2012_R2', 'WIN_SVR_2016', 'WIN_SVR_2019', 'WIN_SVR_2022', 'WIN_SVR_2025',
+	'WIN_10', 'WIN_11',
+	'DEBIAN_10', 'DEBIAN_11', 'DEBIAN_12',
+	'CENTOS_7', 'CENTOS_8', 'CENTOS_9',
+	'UBUNTU_18', 'UBUNTU_20', 'UBUNTU_22',
+	'AMAZON_LINUX_2', 'AMAZON_LINUX_2023',
+	'LINUX', 'MACOS', 'ESXI',
+	'OTHER_OS'
 ]);
 export const serverApplicationTypeEnum = pgEnum('server_application_type', [
-  'EXCHANGE', 'SQL', 'FILE', 'DOMAIN', 'BACKUP', 'RDS', 'APPLICATION', 'OTHER', 'NONE'
+	'EXCHANGE', 'SQL', 'FILE', 'DOMAIN', 'BACKUP', 'RDS', 'APPLICATION', 'OTHER', 'NONE'
 ]);
 
 // New settings table
 export const settings = pgTable("settings", {
-  key: text("key").primaryKey().notNull(),
-  value: jsonb("value").notNull(),
-  createdAt: timestamp("created_at", { mode: 'date' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: timestamp("updated_at", { mode: 'date' }).$defaultFn(() => new Date()).notNull(),
+	key: text("key").primaryKey().notNull(),
+	value: jsonb("value").notNull(),
+	createdAt: timestamp("created_at", { mode: 'date' }).$defaultFn(() => new Date()).notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'date' }).$defaultFn(() => new Date()).notNull(),
 });
 
 
@@ -39,7 +39,7 @@ export const verification = pgTable("verification", {
 
 export const user = pgTable("user", {
 	id: text().primaryKey().notNull(),
-  freshserviceId: text("freshservice_id"),
+	freshserviceId: text("freshservice_id"),
 	name: text().notNull(),
 	email: text().notNull(),
 	emailVerified: boolean("email_verified").notNull(),
@@ -51,8 +51,8 @@ export const user = pgTable("user", {
 ]);
 
 export const userRelations = relations(user, ({ many }) => ({
-  accounts: many(account),
-  sessions: many(session),
+	accounts: many(account),
+	sessions: many(session),
 }));
 
 export const account = pgTable("account", {
@@ -72,17 +72,17 @@ export const account = pgTable("account", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "account_user_id_user_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "account_user_id_user_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const accountRelations = relations(account, ({ one }) => ({
-  user: one(user, {
-    fields: [account.userId],
-    references: [user.id],
-  }),
+	user: one(user, {
+		fields: [account.userId],
+		references: [user.id],
+	}),
 }));
 
 export const maintenance = pgTable("maintenance", {
@@ -102,17 +102,17 @@ export const maintenance = pgTable("maintenance", {
 	updatedAt: timestamp("updated_at", { mode: 'date' }).$defaultFn(() => new Date()).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.customerId],
-			foreignColumns: [customer.id],
-			name: "maintenance_customer_id_customer_id_fk" // Updated foreign key name
-		}).onDelete("cascade"),
+		columns: [table.customerId],
+		foreignColumns: [customer.id],
+		name: "maintenance_customer_id_customer_id_fk" // Updated foreign key name
+	}).onDelete("cascade"),
 ]);
 
 export const maintenanceRelations = relations(maintenance, ({ one }) => ({
-  customer: one(customer, {
-    fields: [maintenance.customerId],
-    references: [customer.id],
-  }),
+	customer: one(customer, {
+		fields: [maintenance.customerId],
+		references: [customer.id],
+	}),
 }));
 
 export const checklistItem = pgTable("checklist_item", {
@@ -125,10 +125,10 @@ export const checklistItem = pgTable("checklist_item", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.maintenanceId],
-			foreignColumns: [maintenance.id],
-			name: "checklist_item_maintenance_id_maintenance_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.maintenanceId],
+		foreignColumns: [maintenance.id],
+		name: "checklist_item_maintenance_id_maintenance_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const session = pgTable("session", {
@@ -142,23 +142,23 @@ export const session = pgTable("session", {
 	userId: text("user_id").notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "session_user_id_user_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.userId],
+		foreignColumns: [user.id],
+		name: "session_user_id_user_id_fk"
+	}).onDelete("cascade"),
 	unique("session_token_unique").on(table.token),
 ]);
 
 export const sessionRelations = relations(session, ({ one }) => ({
-  user: one(user, {
-    fields: [session.userId],
-    references: [user.id],
-  }),
+	user: one(user, {
+		fields: [session.userId],
+		references: [user.id],
+	}),
 }));
 
 export const customer = pgTable("customer", {
 	id: text().primaryKey().notNull(),
-  freshserviceId: text("freshservice_id"),
+	freshserviceId: text("freshservice_id"),
 	name: text().notNull(),
 	address: text(),
 	city: text(),
@@ -173,21 +173,22 @@ export const customer = pgTable("customer", {
 	businessEmail: text("business_email"),
 	businessPhone: text("business_phone"),
 	website: text(),
-	customerInstructions: jsonb("customer_instructions").$type<Array<{type: 'text' | 'image', content: string}>>().default([]), // New: Customer-specific instructions with images
+	customerInstructions: jsonb("customer_instructions").$type<Array<{ type: 'text' | 'image', content: string }>>().default([]), // New: Customer-specific instructions with images
+	maintenanceNotes: text("maintenance_notes"), // New: Persistent maintenance notes (HTML content from editor)
 	sla: boolean("sla").default(false), // New: SLA field
 }, (table) => [
 	unique("customer_abbreviation_unique").on(table.abbreviation),
 ]);
 
 export const customerRelations = relations(customer, ({ many }) => ({
-  maintenanceEntries: many(maintenance),
-  contactPeople: many(contactPerson),
-  systems: many(system),
+	maintenanceEntries: many(maintenance),
+	contactPeople: many(contactPerson),
+	systems: many(system),
 }));
 
 export const system = pgTable("system", {
 	id: text('id').primaryKey(),
-  freshserviceId: text("freshservice_id"),
+	freshserviceId: text("freshservice_id"),
 	customerId: text("customer_id").notNull(),
 	hostname: text('hostname').notNull(),
 	ipAddress: text('ip_address'),
@@ -202,22 +203,22 @@ export const system = pgTable("system", {
 	updatedAt: timestamp("updated_at").$defaultFn(() => new Date()).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.customerId],
-			foreignColumns: [customer.id],
-			name: "system_customer_id_customer_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.customerId],
+		foreignColumns: [customer.id],
+		name: "system_customer_id_customer_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const systemRelations = relations(system, ({ one }) => ({
-  customer: one(customer, {
-    fields: [system.customerId],
-    references: [customer.id],
-  }),
+	customer: one(customer, {
+		fields: [system.customerId],
+		references: [customer.id],
+	}),
 }));
 
 export const contactPerson = pgTable("contact_person", {
 	id: text().primaryKey().notNull(),
-  freshserviceId: text("freshservice_id"),
+	freshserviceId: text("freshservice_id"),
 	customerId: text("customer_id").notNull(),
 	name: text().notNull(),
 	email: text().notNull(),
@@ -226,15 +227,15 @@ export const contactPerson = pgTable("contact_person", {
 	updatedAt: timestamp("updated_at", { mode: 'string' }).notNull(),
 }, (table) => [
 	foreignKey({
-			columns: [table.customerId],
-			foreignColumns: [customer.id],
-			name: "contact_person_customer_id_customer_id_fk"
-		}).onDelete("cascade"),
+		columns: [table.customerId],
+		foreignColumns: [customer.id],
+		name: "contact_person_customer_id_customer_id_fk"
+	}).onDelete("cascade"),
 ]);
 
 export const contactPersonRelations = relations(contactPerson, ({ one }) => ({
-  customer: one(customer, {
-    fields: [contactPerson.customerId],
-    references: [customer.id],
-  }),
+	customer: one(customer, {
+		fields: [contactPerson.customerId],
+		references: [customer.id],
+	}),
 }));

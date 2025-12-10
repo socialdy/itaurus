@@ -81,7 +81,7 @@ export function Combobox({
       <PopoverContent className={cn("w-[--radix-popover-trigger-width] p-0", className)}>
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
-          <CommandList className="max-h-[300px] overflow-y-auto overflow-x-hidden scrollbar scrollbar-thumb-zinc-300 scrollbar-track-zinc-100 scrollbar-thumb-rounded scrollbar-thin">
+          <CommandList className="max-h-[200px] overflow-y-auto">
             <CommandEmpty>{emptyStateMessage}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (

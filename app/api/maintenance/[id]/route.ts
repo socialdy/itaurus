@@ -14,6 +14,14 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     if (!maintenanceEntry) {
       return NextResponse.json({ message: "Maintenance entry not found" }, { status: 404 });
     }
+
+    // Fetch full customer details including maintenanceNotes
+    // This assumes getMaintenanceEntryById joins customer, but we need to ensure it gets all fields
+    // If getMaintenanceEntryById uses a partial selection, we might need to fetch customer separately or update the query
+    // For now, let's assume the data layer needs an update or we fetch it here if missing.
+    // Actually, let's check getMaintenanceEntryById in data/maintenance.ts first. 
+    // If it returns customer object, we should ensure it includes maintenanceNotes.
+
     return NextResponse.json(maintenanceEntry, { status: 200 });
   } catch (error: unknown) {
     const message =

@@ -67,7 +67,7 @@ export function MaintenanceEntryForm({
   submitButtonText,
   technicians,
 }: MaintenanceEntryFormProps) {
-  
+
   const form = useForm<MaintenanceEntryFormData>({
     resolver: zodResolver(maintenanceEntrySchema),
     defaultValues: {
@@ -81,14 +81,16 @@ export function MaintenanceEntryForm({
 
   const selectedCustomerId = form.watch("customerId");
 
-  const customerOptions: ComboboxOption[] = customers.map(customer => ({
-    value: customer.id,
-    label: customer.abbreviation, // Nur die Abkürzung anzeigen
-  }));
+  const customerOptions: ComboboxOption[] = customers
+    .map(customer => ({
+      value: customer.id,
+      label: customer.abbreviation, // Nur die Abkürzung anzeigen
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label)); // Alphabetisch sortieren
 
   const technicianOptions: ComboboxOption[] = technicians.map(tech => ({
-    value: tech, 
-    label: tech, 
+    value: tech,
+    label: tech,
   }));
 
   const selectedTechnicianIds = form.watch("technicianIds") || [];
@@ -127,7 +129,7 @@ export function MaintenanceEntryForm({
             </FormItem>
           )}
         />
-        
+
         <FormField
           control={form.control}
           name="date"

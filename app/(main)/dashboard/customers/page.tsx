@@ -36,6 +36,8 @@ import { useSystemDefinitions } from "@/lib/system-definitions"
 import { useRouter } from "next/navigation"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
+import { useSortableTable } from "@/hooks/use-sortable-table"
+import { SortableTableHead } from "@/components/ui/sortable-table-head"
 
 type ContactPerson = {
   name: string;
@@ -183,17 +185,18 @@ export default function CustomersPage() {
       ))
     );
 
-    return currentCustomers.sort((a, b) =>
-      a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-    );
+    return currentCustomers;
   }, [customers, searchTerm, filters]);
+
+  // Sorting
+  const { sortedData, sortConfig, requestSort } = useSortableTable(sortedAndFilteredCustomers, "name" as keyof Customer)
 
   const PAGE_SIZE = 15;
   const [page, setPage] = useState(1);
-  const totalPages = Math.ceil(sortedAndFilteredCustomers.length / PAGE_SIZE) || 1;
+  const totalPages = Math.ceil(sortedData.length / PAGE_SIZE) || 1;
   const startIdx = (page - 1) * PAGE_SIZE;
   const endIdx = startIdx + PAGE_SIZE;
-  const paginatedCustomers = sortedAndFilteredCustomers.slice(startIdx, endIdx);
+  const paginatedCustomers = sortedData.slice(startIdx, endIdx);
 
   const navigateToCustomerDetail = (customerId: string) => {
     router.push(`/dashboard/customers/${customerId}`);
@@ -216,7 +219,7 @@ export default function CustomersPage() {
       <PageHeader
         title="Kunden"
         description="Verwalten Sie hier alle iTaurus Kunden und deren Details."
-        // actions komplett entfernen, damit kein Dialog/Trigger mehr angeboten wird
+      // actions komplett entfernen, damit kein Dialog/Trigger mehr angeboten wird
       />
 
       <Card className="mt-6">
@@ -226,20 +229,20 @@ export default function CustomersPage() {
             <div className="flex items-center space-x-2">
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
+                <Input
                   placeholder="Kunden suchen..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-8"
-            />
+                />
               </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="ml-2">
                     Filter
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Filtern nach</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuSub>
@@ -291,8 +294,8 @@ export default function CustomersPage() {
                   <DropdownMenuItem onSelect={resetFilters}>
                     Filter zurücksetzen
                   </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </CardHeader>
@@ -306,102 +309,142 @@ export default function CustomersPage() {
               <AlertTriangle className="h-12 w-12 mb-4" />
               <p>Fehler beim Laden der Kunden: {error || definitionsError}</p>
             </div>
-          ) : sortedAndFilteredCustomers.length === 0 ? (
+          ) : sortedData.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-40 text-muted-foreground">
               <SquarePen className="h-12 w-12 mb-4" />
               <p>Keine Kunden gefunden.</p>
             </div>
           ) : (
-            <div className="w-full overflow-x-auto">
-              <Table className="min-w-[800px] ">
+            <Table className="min-w-[800px] ">
               <TableHeader>
-                  <TableRow className="border-b-2">
+                <TableRow className="border-b-2">
+                  {columnVisibility.abbreviation && (
+                    <SortableTableHead<Customer>
+                      label="Kürzel"
+                      sortKey="abbreviation"
+                      currentSortKey={sortConfig.key}
+                      currentDirection={sortConfig.direction}
+                      onSort={requestSort}
+                      className="px-4 py-2 text-xs md:text-sm"
+                    />
+                  )}
+                  {columnVisibility.name && (
+                    <SortableTableHead<Customer>
+                      label="Name"
+                      sortKey="name"
+                      currentSortKey={sortConfig.key}
+                      currentDirection={sortConfig.direction}
+                      onSort={requestSort}
+                      className="px-4 py-2 text-xs md:text-sm"
+                    />
+                  )}
+                  {columnVisibility.contactPersons && (
+                    <TableHead className="px-4 py-2 text-xs md:text-sm">Ansprechpartner</TableHead>
+                  )}
+                  {columnVisibility.category && (
+                    <SortableTableHead<Customer>
+                      label="Kategorie"
+                      sortKey="category"
+                      currentSortKey={sortConfig.key}
+                      currentDirection={sortConfig.direction}
+                      onSort={requestSort}
+                      className="px-4 py-2 text-xs md:text-sm"
+                    />
+                  )}
+                  {columnVisibility.billingCode && (
+                    <SortableTableHead<Customer>
+                      label="Abrechnungscode"
+                      sortKey="billingCode"
+                      currentSortKey={sortConfig.key}
+                      currentDirection={sortConfig.direction}
+                      onSort={requestSort}
+                      className="hidden md:table-cell px-4 py-2 text-xs md:text-sm"
+                    />
+                  )}
+                  {columnVisibility.address && (
+                    <TableHead className="hidden lg:table-cell px-4 py-2 text-xs md:text-sm">Adresse</TableHead>
+                  )}
+                  {columnVisibility.serviceManager && (
+                    <SortableTableHead<Customer>
+                      label="Service Manager"
+                      sortKey="serviceManager"
+                      currentSortKey={sortConfig.key}
+                      currentDirection={sortConfig.direction}
+                      onSort={requestSort}
+                      className="hidden md:table-cell px-4 py-2 text-xs md:text-sm"
+                    />
+                  )}
+                  {columnVisibility.sla && (
+                    <SortableTableHead<Customer>
+                      label="SLA"
+                      sortKey="sla"
+                      currentSortKey={sortConfig.key}
+                      currentDirection={sortConfig.direction}
+                      onSort={requestSort}
+                      className="hidden md:table-cell px-4 py-2 text-xs md:text-sm"
+                    />
+                  )}
+                  {columnVisibility.businessPhone && (
+                    <TableHead className="hidden md:table-cell px-4 py-2 text-xs md:text-sm">Firmen Telefon</TableHead>
+                  )}
+                  {columnVisibility.businessEmail && (
+                    <TableHead className="hidden md:table-cell px-4 py-2 text-xs md:text-sm">Firmen E-Mail</TableHead>
+                  )}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedCustomers.map((customer) => (
+                  <TableRow key={customer.id} className="cursor-pointer" onClick={() => navigateToCustomerDetail(customer.id)}>
                     {columnVisibility.abbreviation && (
-                      <TableHead className="px-4 py-2 text-xs md:text-sm">Kürzel</TableHead>
+                      <TableCell className="px-4 py-3 text-xs md:text-sm break-words">{customer.abbreviation}</TableCell>
                     )}
                     {columnVisibility.name && (
-                      <TableHead className="px-4 py-2 text-xs md:text-sm">Name</TableHead>
-                      )}
-                      {columnVisibility.contactPersons && (
-                      <TableHead className="px-4 py-2 text-xs md:text-sm">Ansprechpartner</TableHead>
+                      <TableCell className="px-4 py-3 text-xs md:text-sm font-medium break-words">{customer.name}</TableCell>
+                    )}
+                    {columnVisibility.contactPersons && (
+                      <TableCell className="px-4 py-3 text-xs md:text-sm break-words">
+                        {customer.contactPersons && customer.contactPersons.length > 0
+                          ? customer.contactPersons.map((person, idx) => (
+                            <div key={idx}>{person.name}</div>
+                          ))
+                          : "N/A"}
+                      </TableCell>
                     )}
                     {columnVisibility.category && (
-                      <TableHead className="px-4 py-2 text-xs md:text-sm">Kategorie</TableHead>
+                      <TableCell className="px-4 py-3 text-xs md:text-sm break-words">{customer.category || "N/A"}</TableCell>
                     )}
                     {columnVisibility.billingCode && (
-                      <TableHead className="hidden md:table-cell px-4 py-2 text-xs md:text-sm">Abrechnungscode</TableHead>
-                      )}
+                      <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">
+                        <Badge variant="outline">{customer.billingCode || "N/A"}</Badge>
+                      </TableCell>
+                    )}
                     {columnVisibility.address && (
-                      <TableHead className="hidden lg:table-cell px-4 py-2 text-xs md:text-sm">Adresse</TableHead>
+                      <TableCell className="hidden lg:table-cell px-4 py-3 text-xs md:text-sm break-words">{`${customer.address || ""}${customer.address && (customer.postalCode || customer.city || customer.country) ? ", " : ""}${customer.postalCode || ""} ${customer.city || ""}${customer.city && customer.country ? ", " : ""}${customer.country || ""}`.trim() || "N/A"}</TableCell>
                     )}
                     {columnVisibility.serviceManager && (
-                      <TableHead className="hidden md:table-cell px-4 py-2 text-xs md:text-sm">Service Manager</TableHead>
+                      <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.serviceManager || "N/A"}</TableCell>
                     )}
                     {columnVisibility.sla && (
-                      <TableHead className="hidden md:table-cell px-4 py-2 text-xs md:text-sm">SLA</TableHead>
+                      <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.sla ? <Badge>Ja</Badge> : <Badge variant="outline">Nein</Badge>}</TableCell>
                     )}
                     {columnVisibility.businessPhone && (
-                      <TableHead className="hidden md:table-cell px-4 py-2 text-xs md:text-sm">Firmen Telefon</TableHead>
+                      <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.businessPhone || "N/A"}</TableCell>
                     )}
                     {columnVisibility.businessEmail && (
-                      <TableHead className="hidden md:table-cell px-4 py-2 text-xs md:text-sm">Firmen E-Mail</TableHead>
+                      <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.businessEmail || "N/A"}</TableCell>
                     )}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedCustomers.map((customer) => (
-                    <TableRow key={customer.id} className="cursor-pointer" onClick={() => navigateToCustomerDetail(customer.id)}>
-                      {columnVisibility.abbreviation && (
-                        <TableCell className="px-4 py-3 text-xs md:text-sm break-words">{customer.abbreviation}</TableCell>
-                      )}
-                      {columnVisibility.name && (
-                        <TableCell className="px-4 py-3 text-xs md:text-sm font-medium break-words">{customer.name}</TableCell>
-                      )}
-                      {columnVisibility.contactPersons && (
-                        <TableCell className="px-4 py-3 text-xs md:text-sm break-words">
-                          {customer.contactPersons && customer.contactPersons.length > 0
-                            ? customer.contactPersons.map((person, idx) => (
-                                <div key={idx}>{person.name}</div>
-                              ))
-                            : "N/A"}
-                        </TableCell>
-                      )}
-                      {columnVisibility.category && (
-                        <TableCell className="px-4 py-3 text-xs md:text-sm break-words">{customer.category || "N/A"}</TableCell>
-                      )}
-                      {columnVisibility.billingCode && (
-                        <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">
-                          <Badge variant="outline">{customer.billingCode || "N/A"}</Badge>
-                        </TableCell>
-                      )}
-                      {columnVisibility.address && (
-                        <TableCell className="hidden lg:table-cell px-4 py-3 text-xs md:text-sm break-words">{`${customer.address || ""}${customer.address && (customer.postalCode || customer.city || customer.country) ? ", " : ""}${customer.postalCode || ""} ${customer.city || ""}${customer.city && customer.country ? ", " : ""}${customer.country || ""}`.trim() || "N/A"}</TableCell>
-                      )}
-                      {columnVisibility.serviceManager && (
-                        <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.serviceManager || "N/A"}</TableCell>
-                      )}
-                      {columnVisibility.sla && (
-                        <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.sla ? <Badge>Ja</Badge> : <Badge variant="outline">Nein</Badge>}</TableCell>
-                      )}
-                      {columnVisibility.businessPhone && (
-                        <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.businessPhone || "N/A"}</TableCell>
-                      )}
-                      {columnVisibility.businessEmail && (
-                        <TableCell className="hidden md:table-cell px-4 py-3 text-xs md:text-sm break-words">{customer.businessEmail || "N/A"}</TableCell>
-                      )}
-                    </TableRow>
-                  ))}
+                ))}
               </TableBody>
             </Table>
-            </div>
           )}
         </CardContent>
       </Card>
 
       <div className="mt-6 flex justify-center items-center gap-4">
-        <Button variant="outline" size="sm" onClick={()=>setPage(p => Math.max(1, p-1))} disabled={page===1}>Zurück</Button>
+        <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>Zurück</Button>
         <span className="font-medium text-sm">Seite {page} / {totalPages}</span>
-        <Button variant="outline" size="sm" onClick={()=>setPage(p => Math.min(totalPages, p+1))} disabled={page===totalPages}>Weiter</Button>
+        <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Weiter</Button>
       </div>
 
     </div>

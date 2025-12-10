@@ -29,7 +29,7 @@ export const useSystemDefinitions = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data: SettingsItem[] = await response.json();
-      
+
       const fetchedDefs: Record<string, DefinitionItem[] | string[]> = {};
       data.forEach(item => {
         fetchedDefs[item.key] = item.value;
@@ -48,7 +48,33 @@ export const useSystemDefinitions = () => {
     fetchDefinitions();
   }, [fetchDefinitions]);
 
-  return { definitions, loading, error, refetch: fetchDefinitions };
+  const getList = (key: string) => {
+    const list = definitions[key];
+    if (!list) return [];
+    return list.map(item => {
+      if (typeof item === 'string') {
+        return { id: item, name: item, value: item, label: item };
+      }
+      return {
+        id: item.value,
+        name: item.label || item.value,
+        value: item.value,
+        label: item.label || item.value,
+        iconPath: item.iconPath
+      };
+    });
+  };
+
+  return {
+    definitions,
+    loading,
+    error,
+    refetch: fetchDefinitions,
+    technicians: getList('technicians'),
+    hardwareTypes: getList('hardwareTypes'),
+    operatingSystems: getList('operatingSystems'),
+    serverApplicationTypes: getList('serverApplicationTypes'),
+  };
 };
 
 // Export-Platzhalter für die Definitionen, die über den Hook geladen werden

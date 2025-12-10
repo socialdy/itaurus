@@ -151,7 +151,7 @@ const MainToolbarContent = ({
 
       {isMobile && <ToolbarSeparator />}
 
-      </>
+    </>
   )
 }
 
@@ -233,18 +233,36 @@ export function SimpleEditor({ content, onContentChange }: SimpleEditorProps) {
 
   React.useEffect(() => {
     if (editor && content !== undefined && editor.getHTML() !== content) {
-      editor.commands.setContent(content, { emitUpdate: false });
+      // Only update if the content is significantly different to avoid cursor jumping
+      // when the parent updates with debounced content
+      const currentContent = editor.getHTML();
+      if (currentContent !== content) {
+        // Check if the difference is just due to empty p tags or similar if needed, 
+        // but for now relying on strict equality.
+        // If we are typing, editor.getHTML() is ahead of content.
+        // We should NOT update if the editor is focused?
+        if (!editor.isFocused) {
+          editor.commands.setContent(content, { emitUpdate: false });
+        }
+      }
     }
   }, [editor, content]);
 
   React.useEffect(() => {
     if (editor && onContentChange) {
+      let timeoutId: NodeJS.Timeout;
+
       const handleUpdate = () => {
-        onContentChange(editor.getHTML());
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          onContentChange(editor.getHTML());
+        }, 500); // 500ms debounce
       };
+
       editor.on("update", handleUpdate);
       return () => {
         editor.off("update", handleUpdate);
+        clearTimeout(timeoutId);
       };
     }
   }, [editor, onContentChange]);
@@ -272,8 +290,8 @@ export function SimpleEditor({ content, onContentChange }: SimpleEditorProps) {
               : {}),
             ...(isMobile
               ? {
-                  bottom: `calc(100% - ${windowSize.height - rect.y}px)`,
-                }
+                bottom: `calc(100% - ${windowSize.height - rect.y}px)`,
+              }
               : {}),
           }}
         >
