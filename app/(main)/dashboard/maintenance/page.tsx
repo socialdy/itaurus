@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AlertTriangle, Filter, PlusCircle, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
+import { AlertTriangle, PlusCircle, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import {
@@ -570,7 +569,7 @@ export default function MaintenanceOverviewPage() {
           <DialogHeader>
             <DialogTitle>Wartung löschen</DialogTitle>
             <DialogDescription>
-              Sind Sie sicher, dass Sie die Wartung "{entryToDelete?.title}" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+              Sind Sie sicher, dass Sie die Wartung &quot;{entryToDelete?.title}&quot; löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-2 mt-4">

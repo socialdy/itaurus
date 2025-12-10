@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useMemo, useState, useCallback } from "react"
-import { AlertCircle, ArrowLeft, Building2, Mail, Phone, Globe, MapPin, User, Calendar, Server, LayoutDashboard, ClipboardCheck, Clock, CheckCircle2, Search, Trash2, MoreHorizontal, Pencil } from "lucide-react"
+import { AlertCircle, Building2, Mail, Phone, MapPin, User, Server, Clock, CheckCircle2, Search, Trash2, MoreHorizontal, Pencil } from "lucide-react"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
 
@@ -10,8 +11,6 @@ import { Button } from "@/components/ui/button"
 import {
     Card,
     CardContent,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
@@ -206,16 +205,14 @@ const renderInstalledSoftware = (software?: string[] | null) => {
                 return (
                     <Badge key={name} variant="secondary" className="flex items-center gap-1 text-xs">
                         <span className="relative h-4 w-4 overflow-hidden rounded-sm bg-white">
-                            <img
+                            <Image
                                 src={candidates[0]}
                                 alt={name}
                                 width={16}
                                 height={16}
                                 className="h-4 w-4 object-contain"
-                                data-icon-index="0"
-                                data-icon-candidates={candidates.join("|")}
                                 onError={handleIconError}
-                                loading="lazy"
+                                unoptimized
                             />
                         </span>
                         {name}
@@ -433,31 +430,6 @@ export default function CustomerDetailsPage() {
         return Array.from(technicians).sort()
     }, [maintenanceStats.past])
 
-    const paginatedOpenMaintenance = useMemo(() => {
-        let filtered = maintenanceStats.open
-
-        // Apply search filter
-        if (openMaintenanceSearch.trim()) {
-            const searchLower = openMaintenanceSearch.trim().toLowerCase()
-            filtered = filtered.filter(entry =>
-                entry.title.toLowerCase().includes(searchLower)
-            )
-        }
-
-        // Apply status filter
-        if (openMaintenanceStatusFilter !== "all") {
-            filtered = filtered.filter(entry => entry.status === openMaintenanceStatusFilter)
-        }
-
-        // Apply technician filter
-        if (openMaintenanceTechnicianFilter !== "all") {
-            filtered = filtered.filter(entry => entry.technicianIds?.includes(openMaintenanceTechnicianFilter))
-        }
-
-        const start = (openPage - 1) * PAGE_SIZE
-        return filtered.slice(start, start + PAGE_SIZE)
-    }, [maintenanceStats.open, openPage, openMaintenanceSearch, openMaintenanceStatusFilter, openMaintenanceTechnicianFilter])
-
     // Sorting for open maintenance
     const filteredOpenMaintenance = useMemo(() => {
         let filtered = maintenanceStats.open
@@ -482,31 +454,6 @@ export default function CustomerDetailsPage() {
     }, [sortedOpenMaintenance, openPage])
 
     const openTotalPages = Math.ceil(maintenanceStats.open.length / PAGE_SIZE)
-
-    const paginatedPastMaintenance = useMemo(() => {
-        let filtered = maintenanceStats.past
-
-        // Apply search filter
-        if (pastMaintenanceSearch.trim()) {
-            const searchLower = pastMaintenanceSearch.trim().toLowerCase()
-            filtered = filtered.filter(entry =>
-                entry.title.toLowerCase().includes(searchLower)
-            )
-        }
-
-        // Apply status filter
-        if (pastMaintenanceStatusFilter !== "all") {
-            filtered = filtered.filter(entry => entry.status === pastMaintenanceStatusFilter)
-        }
-
-        // Apply technician filter
-        if (pastMaintenanceTechnicianFilter !== "all") {
-            filtered = filtered.filter(entry => entry.technicianIds?.includes(pastMaintenanceTechnicianFilter))
-        }
-
-        const start = (pastPage - 1) * PAGE_SIZE
-        return filtered.slice(start, start + PAGE_SIZE)
-    }, [maintenanceStats.past, pastPage, pastMaintenanceSearch, pastMaintenanceStatusFilter, pastMaintenanceTechnicianFilter])
 
     // Sorting for past maintenance
     const filteredPastMaintenance = useMemo(() => {
@@ -585,11 +532,6 @@ export default function CustomerDetailsPage() {
             </div>
         )
     }
-
-    const fullAddress =
-        [customer.address, customer.postalCode, customer.city, customer.country]
-            .filter(Boolean)
-            .join(", ") || "Keine Angaben"
 
     return (
         <div className="space-y-6 p-6">
@@ -1344,7 +1286,7 @@ export default function CustomerDetailsPage() {
                     <DialogHeader>
                         <DialogTitle>Wartung löschen</DialogTitle>
                         <DialogDescription>
-                            Sind Sie sicher, dass Sie die Wartung "{entryToDelete?.title}" löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+                            Sind Sie sicher, dass Sie die Wartung &quot;{entryToDelete?.title}&quot; löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex justify-end gap-3 mt-4">

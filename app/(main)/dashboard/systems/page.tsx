@@ -2,6 +2,7 @@
 
 import { SyntheticEvent, useEffect, useMemo, useState } from "react"
 import { AlertTriangle, Search } from "lucide-react"
+import Image from "next/image"
 
 import { Breadcrumb } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
@@ -33,16 +34,9 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { PageHeader } from "@/components/ui/page-header"
-import { Combobox, ComboboxOption } from "@/components/ui/combobox"
+import { Combobox } from "@/components/ui/combobox"
 import { useSortableTable } from "@/hooks/use-sortable-table"
 import { SortableTableHead } from "@/components/ui/sortable-table-head"
 
@@ -66,8 +60,6 @@ type Filters = {
   maintenanceInterval: string
   serverApplicationType: string
 }
-
-type Option = { value: string; label: string }
 
 const formatLabel = (value?: string | null) => {
   if (!value || value === "NONE") return ""
@@ -150,16 +142,14 @@ const renderInstalledSoftware = (software?: string[] | null) => {
         return (
           <Badge key={name} variant="secondary" className="flex items-center gap-1 text-xs">
             <span className="relative h-4 w-4 overflow-hidden rounded-sm bg-white">
-              <img
+              <Image
                 src={candidates[0]}
                 alt={name}
                 width={16}
                 height={16}
                 className="h-4 w-4 object-contain"
-                data-icon-index="0"
-                data-icon-candidates={candidates.join("|")}
                 onError={handleIconError}
-                loading="lazy"
+                unoptimized
               />
             </span>
             {name}
@@ -340,9 +330,6 @@ export default function SystemsPage() {
     setSelectedCustomer("all")
   }
 
-  const hasFiltersApplied =
-    selectedCustomer !== "all" || Object.values(filters).some((value) => value !== "all")
-
   const totalPages = Math.ceil(sortedData.length / PAGE_SIZE) || 1
   const startIdx = (page - 1) * PAGE_SIZE
   const paginatedSystems = sortedData.slice(startIdx, startIdx + PAGE_SIZE)
@@ -436,7 +423,7 @@ export default function SystemsPage() {
                     <DropdownMenuSubTrigger>Betriebsart</DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent>
-                        {optionData.hardwareTypes.map(({ value, label }) => (
+                        {optionData.hardwareTypes.map(({ value }) => (
                           <DropdownMenuItem
                             key={value}
                             onSelect={() =>
@@ -454,7 +441,7 @@ export default function SystemsPage() {
                     <DropdownMenuSubTrigger>Funktion</DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent>
-                        {optionData.serverApps.map(({ value, label }) => (
+                        {optionData.serverApps.map(({ value }) => (
                           <DropdownMenuItem
                             key={value}
                             onSelect={() =>

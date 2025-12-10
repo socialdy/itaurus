@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
-import { AlertCircle, FileText, Save, Search, Building2, User, MapPin, Mail, Phone, Users, Pencil } from "lucide-react"
+import { AlertCircle, FileText, Save, Search, Building2, User, MapPin, Mail, Phone, Users } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
 
@@ -106,14 +106,13 @@ export default function MaintenanceDetailPage() {
   const router = useRouter()
   const params = useParams<{ id?: string }>()
   const maintenanceId = params?.id
-  const { technicians, hardwareTypes, serverApplicationTypes, operatingSystems } = useSystemDefinitions()
+  const { technicians, hardwareTypes, serverApplicationTypes } = useSystemDefinitions()
 
   const [entry, setEntry] = useState<MaintenanceDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [systems, setSystems] = useState<ApiSystem[]>([])
   const [systemsLoading, setSystemsLoading] = useState(false)
-  const [systemsError, setSystemsError] = useState<string | null>(null)
   const [maintenanceNotes, setMaintenanceNotes] = useState<string>("")
   const [isEditOpen, setIsEditOpen] = useState(false)
 
@@ -175,7 +174,6 @@ export default function MaintenanceDetailPage() {
 
     const fetchSystems = async () => {
       setSystemsLoading(true)
-      setSystemsError(null)
       try {
         const params = new URLSearchParams({ customerId: entry.customerId })
         const response = await fetch(`/api/systems?${params.toString()}`)
@@ -200,7 +198,7 @@ export default function MaintenanceDetailPage() {
           fetchError instanceof Error
             ? fetchError.message
             : "Unbekannter Fehler beim Laden der Systeme."
-        setSystemsError(message)
+        toast.error(message)
       } finally {
         if (isMounted) {
           setSystemsLoading(false)
@@ -243,36 +241,9 @@ export default function MaintenanceDetailPage() {
         }).catch(() => toast.error("Fehler bei der automatischen Techniker-Zuweisung"));
       }
     }
-  }, [technicians, systems, entry?.id]);
+  }, [technicians, systems, entry, entry?.id]);
 
-  const handleUpdateTrackableItem = useCallback(async (systemId: string, itemId: string, status: string) => {
-    const currentEntry = entryRef.current
-    if (!currentEntry || !maintenanceId) return
 
-    const currentSystemItems = currentEntry.systemTrackableItems?.[systemId] || {}
-    const updatedSystemItems = { ...currentSystemItems, [itemId]: status }
-    const updatedTrackableItems = {
-      ...currentEntry.systemTrackableItems,
-      [systemId]: updatedSystemItems,
-    }
-
-    setEntry(prev => prev ? ({ ...prev, systemTrackableItems: updatedTrackableItems }) : null)
-
-    try {
-      const response = await fetch(`/api/maintenance/${maintenanceId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemTrackableItems: updatedTrackableItems,
-        }),
-      })
-
-      if (!response.ok) throw new Error("Failed to update status")
-    } catch (error) {
-      toast.error("Fehler beim Speichern des Status")
-      fetchEntry()
-    }
-  }, [maintenanceId, fetchEntry])
 
   const handleAssignTechnician = useCallback(async (systemId: string, technicianId: string) => {
     const currentEntry = entryRef.current
@@ -296,7 +267,7 @@ export default function MaintenanceDetailPage() {
 
       if (!response.ok) throw new Error("Failed to update technician assignment")
       toast.success("Techniker zugewiesen")
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Zuweisen des Technikers")
       fetchEntry()
     }
@@ -324,7 +295,7 @@ export default function MaintenanceDetailPage() {
 
       if (!response.ok) throw new Error("Failed to update note")
       toast.success("Notiz gespeichert")
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Speichern der Notiz")
       fetchEntry()
     }
@@ -353,7 +324,7 @@ export default function MaintenanceDetailPage() {
       })
 
       if (!response.ok) throw new Error("Failed to update status")
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Speichern des Status")
       fetchEntry()
     }
@@ -383,7 +354,7 @@ export default function MaintenanceDetailPage() {
       if (!response.ok) throw new Error("Failed to update technician assignment")
       toast.success(`Techniker für ${selectedSystems.size} Systeme zugewiesen`)
       setSelectedSystems(new Set())
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Zuweisen des Technikers")
       fetchEntry()
     }
@@ -448,7 +419,7 @@ export default function MaintenanceDetailPage() {
       if (!response.ok) throw new Error("Failed to update status")
       toast.success(`Alle Felder für ${selectedSystems.size} Systeme auf "${STATUS_LABELS[status] || status}" gesetzt`)
       setSelectedSystems(new Set()) // Clear selection after successful update
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Speichern des Status")
       fetchEntry()
     }
@@ -468,7 +439,7 @@ export default function MaintenanceDetailPage() {
 
       if (!response.ok) throw new Error("Failed to save notes")
       toast.success("Wartungsnotizen gespeichert")
-    } catch (error) {
+    } catch {
       toast.error("Fehler beim Speichern der Notizen")
     }
   }
@@ -709,7 +680,7 @@ export default function MaintenanceDetailPage() {
                         if (!response.ok) throw new Error('Failed to update status')
                         await fetchEntry()
                         toast.success('Status auf "Geplant" gesetzt')
-                      } catch (error) {
+                      } catch {
                         toast.error('Fehler beim Aktualisieren des Status')
                       }
                     }}
@@ -727,7 +698,7 @@ export default function MaintenanceDetailPage() {
                         if (!response.ok) throw new Error('Failed to update status')
                         await fetchEntry()
                         toast.success('Status auf "In Arbeit" gesetzt')
-                      } catch (error) {
+                      } catch {
                         toast.error('Fehler beim Aktualisieren des Status')
                       }
                     }}
@@ -745,7 +716,7 @@ export default function MaintenanceDetailPage() {
                         if (!response.ok) throw new Error('Failed to update status')
                         await fetchEntry()
                         toast.success('Status auf "Abgeschlossen" gesetzt')
-                      } catch (error) {
+                      } catch {
                         toast.error('Fehler beim Aktualisieren des Status')
                       }
                     }}
@@ -763,7 +734,7 @@ export default function MaintenanceDetailPage() {
                         if (!response.ok) throw new Error('Failed to update status')
                         await fetchEntry()
                         toast.success('Status auf "Fehler" gesetzt')
-                      } catch (error) {
+                      } catch {
                         toast.error('Fehler beim Aktualisieren des Status')
                       }
                     }}
@@ -781,7 +752,7 @@ export default function MaintenanceDetailPage() {
                         if (!response.ok) throw new Error('Failed to update status')
                         await fetchEntry()
                         toast.success('Status auf "Nicht anwendbar" gesetzt')
-                      } catch (error) {
+                      } catch {
                         toast.error('Fehler beim Aktualisieren des Status')
                       }
                     }}
@@ -973,7 +944,7 @@ export default function MaintenanceDetailPage() {
                   assignedTechnicianId={entry.systemTechnicianAssignments?.[system.id]?.[0]}
                   onAssignTechnician={handleAssignTechnician}
                   trackableItems={entry.systemTrackableItems?.[system.id] || {}}
-                  onUpdateTrackableItem={handleUpdateTrackableItem}
+
                   onBulkUpdateTrackableItems={handleBulkUpdateTrackableItems}
                   systemNote={entry.systemNotes?.[system.id] || ""}
                   onUpdateSystemNote={handleUpdateSystemNote}
@@ -1011,7 +982,7 @@ export default function MaintenanceDetailPage() {
       {/* Multi-System Bulk Update Bar */}
       <MultiSystemBulkUpdateBar
         selectedCount={selectedSystems.size}
-        allSystemsCount={filteredSystems.length}
+
         allSelected={selectedSystems.size === filteredSystems.length && filteredSystems.length > 0}
         technicians={technicians}
         onToggleSelectAll={handleToggleSelectAll}

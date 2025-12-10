@@ -15,7 +15,6 @@ import { cn } from "@/lib/utils"
 
 interface MultiSystemBulkUpdateBarProps {
     selectedCount: number
-    allSystemsCount: number
     allSelected: boolean
     technicians: Array<{ id: string; name: string }>
     onToggleSelectAll: () => void
@@ -34,7 +33,6 @@ const STATUS_OPTIONS = [
 
 export function MultiSystemBulkUpdateBar({
     selectedCount,
-    allSystemsCount,
     allSelected,
     technicians,
     onToggleSelectAll,

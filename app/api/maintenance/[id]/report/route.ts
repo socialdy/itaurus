@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { PDFDocument, StandardFonts, rgb, PageSizes } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, PDFImage } from "pdf-lib";
 import { getMaintenanceEntryById } from "@/lib/data/maintenance";
 import { getSystemsByCustomerId } from "@/lib/data/system";
 import fs from 'fs';
@@ -49,7 +49,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
     // Load Logo
-    let logoImage;
+    let logoImage: PDFImage | undefined;
     try {
       // PDF-Lib does not support SVG directly. Using PNG.
       const logoPath = path.join(process.cwd(), 'public', 'itaurus-logo-black.png');
@@ -156,10 +156,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
     const rowHeight = 18;
 
     // --- Render ---
-    let { page, startY } = addPageWithHeader(0);
+    const res = addPageWithHeader(0);
+    let page = res.page;
+    const startY = res.startY;
     let currentY = startY;
 
     // Draw Table Header
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const drawTableHeader = (p: any, y: number) => {
       // System Name Header
       p.drawText("System", { x: margin, y: y, size: 10, font: fontBold });
@@ -268,7 +271,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
     }
 
     const pdfBytes = await doc.save();
-    return new NextResponse(pdfBytes, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return new NextResponse(pdfBytes as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

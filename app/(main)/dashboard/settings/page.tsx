@@ -61,7 +61,7 @@ export default function SettingsPage() {
       if (!response.ok) throw new Error('Failed to fetch settings')
       const data = await response.json()
 
-      const techSetting = data.find((item: any) => item.key === 'technicians')
+      const techSetting = data.find((item: { key: string; value: string[] }) => item.key === 'technicians')
       if (techSetting && Array.isArray(techSetting.value)) {
         setTechnicians(techSetting.value.map((name: string) => ({ id: name, name })))
       }

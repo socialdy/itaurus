@@ -5,24 +5,25 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
     Check, X, AlertTriangle, Ban, Minus,
     Monitor, Server, Database, Mail, FileText, Box,
-    RefreshCw, Power, Activity, Search
+    RefreshCw, Power, Activity
 } from "lucide-react"
+import Image from "next/image"
 import { SyntheticEvent } from "react"
 import { cn } from "@/lib/utils"
 
 interface SystemCardProps {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     system: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     technicians: any[];
     assignedTechnicianId: string | undefined;
     onAssignTechnician: (systemId: string, technicianId: string) => void;
     trackableItems: Record<string, string | undefined>;
-    onUpdateTrackableItem: (systemId: string, item: string, status: string) => void;
     onBulkUpdateTrackableItems: (systemId: string, updates: Record<string, string>) => void;
     systemNote: string;
     onUpdateSystemNote: (systemId: string, note: string) => void;
@@ -32,11 +33,15 @@ interface SystemCardProps {
 
 const TRACKABLE_ITEMS = [
     { id: "system_load", label: "Auslastung", icon: Activity },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { id: "vmware_tools", label: "VMWare Tools", icon: Box, condition: (sys: any) => sys.hardwareType === 'VIRTUAL' },
     { id: "os_updates", label: "OS Updates", icon: RefreshCw },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { id: "app_updates", label: "Software", icon: Box, condition: (sys: any) => sys.installedSoftware && sys.installedSoftware.length > 0 },
     { id: "reboots", label: "Reboots", icon: Power },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { id: "sql_update", label: "SQL", icon: Database, condition: (sys: any) => sys.serverApplicationType === 'SQL' },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { id: "exchange_update", label: "Exchange", icon: Mail, condition: (sys: any) => sys.serverApplicationType === 'EXCHANGE' },
     { id: "event_log", label: "Events", icon: FileText },
     { id: "services", label: "Dienste", icon: Server },
@@ -120,7 +125,6 @@ export const SystemCard = React.memo(function SystemCard({
     assignedTechnicianId,
     onAssignTechnician,
     trackableItems,
-    onUpdateTrackableItem,
     onBulkUpdateTrackableItems,
     systemNote,
     onUpdateSystemNote,
@@ -250,14 +254,14 @@ export const SystemCard = React.memo(function SystemCard({
                                 return (
                                     <Badge key={i} variant="secondary" className="flex items-center gap-1 text-[10px] px-1.5 py-0 h-5 font-normal bg-muted/50 hover:bg-muted border-transparent">
                                         <span className="relative h-3.5 w-3.5 overflow-hidden rounded-sm bg-white shrink-0">
-                                            <img
+                                            <Image
                                                 src={candidates[0]}
                                                 alt={name}
+                                                width={14}
+                                                height={14}
                                                 className="h-full w-full object-contain"
-                                                data-icon-index="0"
-                                                data-icon-candidates={candidates.join("|")}
                                                 onError={handleIconError}
-                                                loading="lazy"
+                                                unoptimized
                                             />
                                         </span>
                                         <span className="">{name}</span>
