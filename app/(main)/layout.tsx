@@ -1,5 +1,5 @@
 import { Sidebar } from '@/components/ui/sidebar';
-import { UserProfile } from '@/components/ui/user-profile';
+
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 
