@@ -844,7 +844,7 @@ export default function CustomerDetailsPage() {
                                                     currentSortKey={systemsSortConfig.key}
                                                     currentDirection={systemsSortConfig.direction}
                                                     onSort={requestSystemsSort}
-                                                    className="text-right"
+                                                    className=""
                                                 />
                                             </TableRow>
                                         </TableHeader>
@@ -863,7 +863,7 @@ export default function CustomerDetailsPage() {
                                                     <TableCell className="align-top">{formatDisplayOs(system.operatingSystem)}</TableCell>
                                                     <TableCell className="align-top">{formatHardwareType(system.hardwareType)}</TableCell>
                                                     <TableCell className="align-top">{formatLabel(system.serverApplicationType)}</TableCell>
-                                                    <TableCell className="align-top text-right">
+                                                    <TableCell className="align-top">
                                                         {system.maintenanceInterval && system.maintenanceInterval !== "null" ? system.maintenanceInterval : ""}
                                                     </TableCell>
                                                 </TableRow>

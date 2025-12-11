@@ -20,8 +20,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
@@ -100,13 +98,25 @@ interface Filters {
   serverApplicationType: string | null;
   technicianId: string | null;
   operatingSystem: string | null;
+  checkStatus: string | null;
+}
+
+const formatLabel = (value?: string | null) => {
+  if (!value || value === "NONE") return ""
+  if (value === "SQL") return "SQL-Server"
+  if (value === "Exchange" || value === "EXCHANGE") return "Exchange-Server"
+  if (value === "Backup" || value === "BACKUP") return "Backup-Server"
+  if (value === "File" || value === "FILE") return "File-Server"
+  if (value === "OTHERS" || value === "Others" || value === "OTHER" || value === "Other") return "Andere"
+  if (value === "APPLICATION" || value === "Application") return "Andere"
+  return value.replace(/_/g, " ")
 }
 
 export default function MaintenanceDetailPage() {
   const router = useRouter()
   const params = useParams<{ id?: string }>()
   const maintenanceId = params?.id
-  const { technicians, hardwareTypes, serverApplicationTypes } = useSystemDefinitions()
+  const { technicians, hardwareTypes } = useSystemDefinitions()
 
   const [entry, setEntry] = useState<MaintenanceDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -129,10 +139,25 @@ export default function MaintenanceDetailPage() {
     serverApplicationType: null,
     technicianId: null,
     operatingSystem: null,
+    checkStatus: null,
   });
 
   // System selection state for bulk updates
   const [selectedSystems, setSelectedSystems] = useState<Set<string>>(new Set())
+
+  const availableServerApps = useMemo(() => {
+    const apps = new Set<string>();
+    systems.forEach(s => {
+      if (s.serverApplicationType && !["APPLICATION", "Application"].includes(s.serverApplicationType)) {
+        apps.add(s.serverApplicationType)
+      }
+    });
+
+    return Array.from(apps).map(value => ({
+      value,
+      label: formatLabel(value)
+    }));
+  }, [systems]);
 
   const handleReport = () => {
     window.open(`/api/maintenance/${maintenanceId}/report`, "_blank")
@@ -474,7 +499,7 @@ export default function MaintenanceDetailPage() {
   }
 
   const resetFilters = () => {
-    setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null });
+    setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null, checkStatus: null });
   };
 
   const filteredSystems = useMemo(() => {
@@ -502,10 +527,17 @@ export default function MaintenanceDetailPage() {
         if (filters.operatingSystem === "Linux" && !(os.includes("linux") || os.includes("debian") || os.includes("ubuntu"))) return false;
         if (filters.operatingSystem === "Other" && (os.includes("win") || os.includes("linux") || os.includes("debian") || os.includes("ubuntu"))) return false;
       }
+      if (filters.checkStatus) {
+        const systemItems = entry?.systemTrackableItems?.[system.id] || {};
+        const hasMatchingStatus = Object.values(systemItems).some(
+          status => status === filters.checkStatus
+        );
+        if (!hasMatchingStatus) return false;
+      }
 
       return true;
     });
-  }, [systems, searchQuery, filters, entry?.systemTechnicianAssignments]);
+  }, [systems, searchQuery, filters, entry?.systemTechnicianAssignments, entry?.systemTrackableItems]);
 
   if (loading) {
     return (
@@ -828,71 +860,60 @@ export default function MaintenanceDetailPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="h-9 px-3">
                   Filter
-                  {(filters.hardwareType || filters.serverApplicationType || filters.technicianId || filters.operatingSystem) && (
-                    <span className="ml-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] text-primary-foreground">
-                      !
-                    </span>
-                  )}
+
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-[200px]">
-                <DropdownMenuLabel>Filteroptionen</DropdownMenuLabel>
+                <DropdownMenuLabel>Filtern nach</DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
-                {/* Hardware Type Filter */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Hardware</DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuRadioGroup
-                        value={filters.hardwareType || ""}
-                        onValueChange={(val) => setFilters(prev => ({ ...prev, hardwareType: val || null }))}
-                      >
-                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
-                        {hardwareTypes.map(type => (
-                          <DropdownMenuRadioItem key={type.id} value={type.value}>
-                            {type.label}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-
-                {/* Server App Filter */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Server Typ</DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                      <DropdownMenuRadioGroup
-                        value={filters.serverApplicationType || ""}
-                        onValueChange={(val) => setFilters(prev => ({ ...prev, serverApplicationType: val || null }))}
-                      >
-                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
-                        {serverApplicationTypes.map(type => (
-                          <DropdownMenuRadioItem key={type.id} value={type.value}>
-                            {type.label}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-
-                {/* Operating System Filter */}
+                {/* Betriebssystem Filter */}
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>Betriebssystem</DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                     <DropdownMenuSubContent>
-                      <DropdownMenuRadioGroup
-                        value={filters.operatingSystem || ""}
-                        onValueChange={(val) => setFilters(prev => ({ ...prev, operatingSystem: val || null }))}
-                      >
-                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Windows">Windows</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Linux">Linux</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="Other">Andere</DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
+                      {["Windows", "Linux", "Andere"].map((label) => (
+                        <DropdownMenuItem
+                          key={label}
+                          onSelect={() => setFilters(prev => ({ ...prev, operatingSystem: label }))}
+                        >
+                          {label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                {/* Betriebsart Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Betriebsart</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      {hardwareTypes.map(type => (
+                        <DropdownMenuItem
+                          key={type.id}
+                          onSelect={() => setFilters(prev => ({ ...prev, hardwareType: type.value }))}
+                        >
+                          {type.label}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                {/* Funktion Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Funktion</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      {availableServerApps.map(type => (
+                        <DropdownMenuItem
+                          key={type.value}
+                          onSelect={() => setFilters(prev => ({ ...prev, serverApplicationType: type.value }))}
+                        >
+                          {type.label}
+                        </DropdownMenuItem>
+                      ))}
                     </DropdownMenuSubContent>
                   </DropdownMenuPortal>
                 </DropdownMenuSub>
@@ -902,26 +923,48 @@ export default function MaintenanceDetailPage() {
                   <DropdownMenuSubTrigger>Techniker</DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                     <DropdownMenuSubContent>
-                      <DropdownMenuRadioGroup
-                        value={filters.technicianId || ""}
-                        onValueChange={(val) => setFilters(prev => ({ ...prev, technicianId: val || null }))}
-                      >
-                        <DropdownMenuRadioItem value="">Alle</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="unassigned">Nicht zugewiesen</DropdownMenuRadioItem>
-                        {technicians.map(tech => (
-                          <DropdownMenuRadioItem key={tech.id} value={tech.id}>
-                            {tech.name}
-                          </DropdownMenuRadioItem>
-                        ))}
-                      </DropdownMenuRadioGroup>
+                      <DropdownMenuItem onSelect={() => setFilters(prev => ({ ...prev, technicianId: "unassigned" }))}>
+                        Nicht zugewiesen
+                      </DropdownMenuItem>
+                      {technicians.map(tech => (
+                        <DropdownMenuItem
+                          key={tech.id}
+                          onSelect={() => setFilters(prev => ({ ...prev, technicianId: tech.id }))}
+                        >
+                          {tech.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                {/* Check Status Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Status der Checks</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onSelect={() => setFilters(prev => ({ ...prev, checkStatus: "OK" }))}>
+                        OK
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setFilters(prev => ({ ...prev, checkStatus: "Error" }))}>
+                        Fehler
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setFilters(prev => ({ ...prev, checkStatus: "InProgress" }))}>
+                        In Arbeit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setFilters(prev => ({ ...prev, checkStatus: "NotDone" }))}>
+                        Offen
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setFilters(prev => ({ ...prev, checkStatus: "NotApplicable" }))}>
+                        N/A
+                      </DropdownMenuItem>
                     </DropdownMenuSubContent>
                   </DropdownMenuPortal>
                 </DropdownMenuSub>
 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onSelect={() => setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null })}
-                  className="justify-center text-center"
+                  onSelect={() => setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null, checkStatus: null })}
                 >
                   Filter zurücksetzen
                 </DropdownMenuItem>
@@ -936,23 +979,30 @@ export default function MaintenanceDetailPage() {
           </div>
         ) : filteredSystems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
-            {filteredSystems.map(system => (
-              <div key={system.id} className="h-full">
-                <SystemCard
-                  system={system}
-                  technicians={technicians}
-                  assignedTechnicianId={entry.systemTechnicianAssignments?.[system.id]?.[0]}
-                  onAssignTechnician={handleAssignTechnician}
-                  trackableItems={entry.systemTrackableItems?.[system.id] || {}}
+            {filteredSystems.map(system => {
+              // Filter technicians to only show those assigned to this maintenance
+              const availableTechnicians = entry.technicianIds && entry.technicianIds.length > 0
+                ? technicians.filter(tech => entry.technicianIds?.includes(tech.id))
+                : technicians;
 
-                  onBulkUpdateTrackableItems={handleBulkUpdateTrackableItems}
-                  systemNote={entry.systemNotes?.[system.id] || ""}
-                  onUpdateSystemNote={handleUpdateSystemNote}
-                  isSystemSelected={selectedSystems.has(system.id)}
-                  onSystemSelectionChange={handleSystemSelectionChange}
-                />
-              </div>
-            ))}
+              return (
+                <div key={system.id} className="h-full">
+                  <SystemCard
+                    system={system}
+                    technicians={availableTechnicians}
+                    assignedTechnicianId={entry.systemTechnicianAssignments?.[system.id]?.[0]}
+                    onAssignTechnician={handleAssignTechnician}
+                    trackableItems={entry.systemTrackableItems?.[system.id] || {}}
+
+                    onBulkUpdateTrackableItems={handleBulkUpdateTrackableItems}
+                    systemNote={entry.systemNotes?.[system.id] || ""}
+                    onUpdateSystemNote={handleUpdateSystemNote}
+                    isSystemSelected={selectedSystems.has(system.id)}
+                    onSystemSelectionChange={handleSystemSelectionChange}
+                  />
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12 border rounded-lg bg-muted/10">

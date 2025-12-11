@@ -13,6 +13,14 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { MaintenanceEntryForm, MaintenanceEntryFormData } from "@/components/ui/maintenance-entry-form"
 import { PageHeader } from "@/components/ui/page-header"
 import { useSystemDefinitions } from "@/lib/system-definitions"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface MaintenanceEntry {
   id: string;
@@ -21,6 +29,7 @@ interface MaintenanceEntry {
   date: string; // ISO string
   status: 'OK' | 'Error' | 'InProgress' | 'NotApplicable' | 'Planned' | 'NotDone';
   customer?: { name: string; abbreviation: string };
+  technicianIds?: string[] | null;
 }
 
 interface DialogCustomer {
@@ -44,6 +53,26 @@ export default function DashboardPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
 
+  // Load technician filter from localStorage
+
+  const [technicianFilter, setTechnicianFilter] = useState<string>('all');
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem('dashboard-technician-filter');
+    if (stored) {
+      setTechnicianFilter(stored);
+    }
+    setIsInitialized(true);
+  }, []);
+
+  // Save technician filter to localStorage whenever it changes
+  useEffect(() => {
+    if (isInitialized) {
+      localStorage.setItem('dashboard-technician-filter', technicianFilter);
+    }
+  }, [technicianFilter, isInitialized]);
+
   // Dialog State:
   const [isMaintenanceEntryFormOpen, setIsMaintenanceEntryFormOpen] = useState(false);
 
@@ -54,6 +83,7 @@ export default function DashboardPage() {
     definitions: systemDefinitions,
     loading: defsLoading,
   } = useSystemDefinitions();
+  const technicians = (systemDefinitions.technicians || []) as string[];
   const [dialogLoading, setDialogLoading] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
 
@@ -149,7 +179,7 @@ export default function DashboardPage() {
   const handleMaintenanceEntrySubmit = async (data: MaintenanceEntryFormData) => {
     try {
       setDialogLoading(true);
-      const response = await fetch("/api/maintenance", {
+      const response = await fetch("/api/maintenance?type=entry", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -177,7 +207,9 @@ export default function DashboardPage() {
   // Filter maintenance entries for the current month's calendar view
   const maintenanceTasksForCalendar = maintenanceEntries.filter(entry => {
     const entryDate = new Date(entry.date);
-    return entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+    const matchesMonth = entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
+    const matchesTechnician = technicianFilter === "all" ? true : entry.technicianIds?.includes(technicianFilter);
+    return matchesMonth && matchesTechnician;
   });
 
   // Calculate statistics for the cards
@@ -394,9 +426,29 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
       {/* Wartungskalender in voller Breite darunter */}
       <Card className="mt-6">
-        <CardHeader className="flex flex-row justify-end items-center pb-0">
+        <CardHeader className="flex flex-row justify-end items-center pb-0 gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8">
+                {technicianFilter === "all" ? "Alle Techniker" : technicianFilter}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Techniker filtern</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setTechnicianFilter("all")}>
+                Alle Techniker
+              </DropdownMenuItem>
+              {technicians.map(tech => (
+                <DropdownMenuItem key={tech} onClick={() => setTechnicianFilter(tech)}>
+                  {tech}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button size="sm" className="h-8 gap-1" onClick={handleCreateTask}>
             <PlusCircle className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Neue Wartung anlegen</span>
@@ -430,7 +482,7 @@ export default function DashboardPage() {
               customers={dialogCustomers}
               systems={dialogSystems}
               submitButtonText="Wartungseintrag anlegen"
-              technicians={Array.isArray(systemDefinitions.technicians) ? (systemDefinitions.technicians as string[]) : []}
+              technicians={technicians}
             />
           )}
         </DialogContent>

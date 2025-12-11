@@ -137,12 +137,24 @@ export async function createMaintenanceEntry(newMaintenanceEntry: typeof mainten
     const month = (maintenanceDate.getMonth() + 1).toString().padStart(2, '0');
     const generatedTitle = `${abbreviation} - Wartung ${year}-${month}`;
 
+    // Auto-assign technician logic: if exactly 1 technician is provided, assign to all systems
+    let systemTechnicianAssignments: Record<string, string[]> = newMaintenanceEntry.systemTechnicianAssignments || {};
+
+    if (newMaintenanceEntry.technicianIds && newMaintenanceEntry.technicianIds.length === 1) {
+      const singleTechnician = newMaintenanceEntry.technicianIds[0];
+      systemTechnicianAssignments = systemIdsToAssign.reduce((acc, systemId) => {
+        acc[systemId] = [singleTechnician];
+        return acc;
+      }, {} as Record<string, string[]>);
+    }
+
     const entryWithTitle = {
       ...newMaintenanceEntry,
       id: uuidv4(), // Generate a unique ID for the new entry
       title: generatedTitle,
       status: newMaintenanceEntry.status || 'Planned', // Set default status if not provided
       systemIds: systemIdsToAssign, // Assign all customer system IDs
+      systemTechnicianAssignments, // Apply auto-assignment if single technician
       instructions: newMaintenanceEntry.instructions || null, // Include instructions, default to null
     };
 

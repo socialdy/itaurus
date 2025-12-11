@@ -100,26 +100,29 @@ export async function GET(_req: Request, { params }: RouteContext) {
         const metaFontSize = 9;
         const metaLineHeight = 14; // Increased line height
 
-        // Left Column Meta
-        let metaLeftY = currentY;
-        page.drawText(`Kunde: ${maint.customer?.name || ''}`, { x: margin, y: metaLeftY, size: metaFontSize, font });
-        metaLeftY -= metaLineHeight;
-        page.drawText(`Wartung: ${maint.title || ''}`, { x: margin, y: metaLeftY, size: metaFontSize, font });
-        metaLeftY -= metaLineHeight;
-        page.drawText(`Datum: ${new Date(maint.date).toLocaleDateString('de-AT')}`, { x: margin, y: metaLeftY, size: metaFontSize, font });
+        // Metadata - Left aligned, vertical stack
+        let metaY = currentY;
+        page.drawText(`Kunde: ${maint.customer?.name || ''}`, { x: margin, y: metaY, size: metaFontSize, font });
+        metaY -= metaLineHeight;
+        page.drawText(`Wartung: ${maint.title || ''}`, { x: margin, y: metaY, size: metaFontSize, font });
+        metaY -= metaLineHeight;
+        page.drawText(`Datum: ${new Date(maint.date).toLocaleDateString('de-AT')}`, { x: margin, y: metaY, size: metaFontSize, font });
+        metaY -= metaLineHeight;
 
-        // Right Column Meta (offset by 300)
-        let metaRightY = currentY;
-        const rightColX = margin + 300;
-        page.drawText(`Service Manager: ${maint.customer?.serviceManager || '-'}`, { x: rightColX, y: metaRightY, size: metaFontSize, font });
-        metaRightY -= metaLineHeight;
-        page.drawText(`Abrechnungscode: ${maint.customer?.billingCode || '-'}`, { x: rightColX, y: metaRightY, size: metaFontSize, font });
-        metaRightY -= metaLineHeight;
-        if (Array.isArray(maint.technicianIds) && maint.technicianIds.length) {
-          page.drawText(`Techniker: ${maint.technicianIds.join(', ')}`, { x: rightColX, y: metaRightY, size: metaFontSize, font });
-        }
+        // Additional metadata on separate lines
+        const serviceManager = maint.customer?.serviceManager || '-';
+        const billingCode = maint.customer?.billingCode || '-';
+        const technicians = (Array.isArray(maint.technicianIds) && maint.technicianIds.length)
+          ? maint.technicianIds.join(', ')
+          : '-';
 
-        currentY = Math.min(metaLeftY, metaRightY) - 25; // Increased spacing
+        page.drawText(`Service Manager: ${serviceManager}`, { x: margin, y: metaY, size: metaFontSize, font });
+        metaY -= metaLineHeight;
+        page.drawText(`Abrechnungscode: ${billingCode}`, { x: margin, y: metaY, size: metaFontSize, font });
+        metaY -= metaLineHeight;
+        page.drawText(`Techniker: ${technicians}`, { x: margin, y: metaY, size: metaFontSize, font });
+
+        currentY = metaY - 25; // Increased spacing
 
         // Notes
         if (maint.notes) {

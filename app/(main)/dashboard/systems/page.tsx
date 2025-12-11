@@ -536,7 +536,7 @@ export default function SystemsPage() {
                     currentSortKey={sortConfig.key}
                     currentDirection={sortConfig.direction}
                     onSort={requestSort}
-                    className="text-right"
+                    className=""
                   />
                 </TableRow>
               </TableHeader>
@@ -557,7 +557,7 @@ export default function SystemsPage() {
                     <TableCell className="align-top">
                       {formatLabel(system.serverApplicationType)}
                     </TableCell>
-                    <TableCell className="align-top text-right">
+                    <TableCell className="align-top">
                       {system.maintenanceInterval && system.maintenanceInterval !== "null" ? system.maintenanceInterval : ""}
                     </TableCell>
                   </TableRow>
