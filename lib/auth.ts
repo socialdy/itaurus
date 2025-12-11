@@ -18,6 +18,13 @@ export const auth = betterAuth({
             scope: ["openid", "profile", "email"],
         },
     },
+
+    // ✅ HIER eingefügt — ganz wichtig!
+    trustedOrigins: [
+        "http://localhost:3000",
+        "https://wartung.itaurus.at"
+    ],
+
     database: drizzleAdapter(db, {
         provider: "pg",
         schema: {
@@ -27,8 +34,10 @@ export const auth = betterAuth({
             verification: schema.verification,
         },
     }),
+
     plugins: [nextCookies()],
+
     logger: {
-        level: "error", // Only show errors, not debug info
+        level: "error",
     },
 });
