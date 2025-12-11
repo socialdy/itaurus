@@ -12,8 +12,8 @@ export async function POST(req: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const filename = `${Date.now()}-${file.name}`;
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
+    const filename = `${Date.now()}-${Math.floor(Math.random() * 1000)}-${file.name}`;
+    const uploadDir = path.join(process.cwd(), "uploads");
     const filePath = path.join(uploadDir, filename);
 
     // Ensure the upload directory exists
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     await fs.writeFile(filePath, buffer);
 
-    const fileUrl = `/uploads/${filename}`;
+    const fileUrl = `/api/uploads/${filename}`;
 
     return NextResponse.json({ url: fileUrl }, { status: 200 });
   } catch (error: unknown) {
@@ -33,4 +33,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
