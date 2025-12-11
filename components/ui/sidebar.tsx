@@ -205,26 +205,28 @@ export function Sidebar({ user }: SidebarProps) {
             <span className="text-lg font-semibold text-white">iTaurus</span>
           </div>
 
-          <Sheet open={isOpen} onOpenChange={setIsOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-zinc-400 hover:text-white hover:bg-white/10"
+          <div className="flex items-center gap-2">
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-zinc-400 hover:text-white hover:bg-white/10"
+                >
+                  <Menu className="h-6 w-6" />
+                  <span className="sr-only">Menü öffnen</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent
+                side="left"
+                className="w-[280px] p-0 border-r-0 bg-zinc-900"
+                onInteractOutside={() => setIsOpen(false)}
               >
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Menü öffnen</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent
-              side="left"
-              className="w-[280px] p-0 border-r-0 bg-zinc-900"
-              onInteractOutside={() => setIsOpen(false)}
-            >
-              <SheetTitle className="sr-only">iTaurus Navigation</SheetTitle>
-              <SidebarContent />
-            </SheetContent>
-          </Sheet>
+                <SheetTitle className="sr-only">iTaurus Navigation</SheetTitle>
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
+          </div>
         </header>
 
         {/* Content Padding for Fixed Header */}
