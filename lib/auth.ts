@@ -6,6 +6,8 @@ import db from "@/db/drizzle";
 import * as schema from "@/db/schema";
 
 export const auth = betterAuth({
+    baseURL: process.env.BETTER_AUTH_URL || "https://wartung.itaurus.at",
+
     emailAndPassword: {
         enabled: true,
         requireEmailVerification: false,
