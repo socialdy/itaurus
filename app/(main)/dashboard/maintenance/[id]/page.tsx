@@ -177,7 +177,7 @@ export default function MaintenanceDetailPage() {
         throw new Error("Wartungseintrag konnte nicht geladen werden.")
       }
       const data = (await response.json()) as MaintenanceDetail
-      const data = (await response.json()) as MaintenanceDetail
+
 
       if (silent) {
         setEntry(prev => {
