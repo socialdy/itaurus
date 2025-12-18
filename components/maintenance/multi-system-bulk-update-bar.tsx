@@ -128,7 +128,6 @@ export function MultiSystemBulkUpdateBar({
                 <Button
                     size="sm"
                     onClick={handleAssignTechnician}
-                    disabled={!selectedTechnician}
                     className="h-9 text-sm px-4"
                 >
                     Zuweisen

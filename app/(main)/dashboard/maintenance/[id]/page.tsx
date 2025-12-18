@@ -259,26 +259,17 @@ export default function MaintenanceDetailPage() {
   }, [entry?.customerId, entry?.systemIds])
 
 
-
-  const handleManualRefresh = () => {
-    setIsRefreshing(true)
-    fetchEntry()
-  }
-
-  const handleSyncSystems = async () => {
+  const handleManualRefresh = async () => {
     if (!maintenanceId) return
     setIsRefreshing(true)
     try {
-      const response = await fetch(`/api/maintenance/${maintenanceId}/sync`, {
-        method: "POST",
-      })
-      if (!response.ok) throw new Error("Synchronisierung fehlgeschlagen")
-      toast.success("Systeme synchronisiert")
-      await fetchEntry()
-    } catch {
-      toast.error("Fehler bei der Synchronisierung")
-      setIsRefreshing(false)
+      // Sync systems first
+      await fetch(`/api/maintenance/${maintenanceId}/sync`, { method: "POST" })
+    } catch (e) {
+      console.error("Sync warning:", e)
     }
+    // Then reload data
+    fetchEntry()
   }
 
   // Auto-assign technician if only one exists
@@ -855,10 +846,7 @@ export default function MaintenanceDetailPage() {
                   >
                     Nicht anwendbar
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={handleSyncSystems}>
-                    Systeme synchronisieren
-                  </DropdownMenuItem>
+
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button onClick={handleReport} className="bg-primary shadow-sm hover:bg-primary/90">
