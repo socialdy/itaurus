@@ -328,6 +328,7 @@ export const SystemCard = React.memo(function SystemCard({
                             value={note}
                             onChange={handleNoteChange}
                             onBlur={handleNoteBlur}
+                            maxLength={255}
                         />
                         <Select
                             value={assignedTechnicianId || "unassigned"}

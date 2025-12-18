@@ -177,9 +177,24 @@ export default function MaintenanceDetailPage() {
         throw new Error("Wartungseintrag konnte nicht geladen werden.")
       }
       const data = (await response.json()) as MaintenanceDetail
-      setEntry(data)
-      if (data.customer?.maintenanceNotes) {
-        setMaintenanceNotes(data.customer.maintenanceNotes)
+      const data = (await response.json()) as MaintenanceDetail
+
+      if (silent) {
+        setEntry(prev => {
+          if (!prev) return data
+          return {
+            ...data,
+            // Preserve potentially edited text fields from local state during background refresh
+            // to prevent overwriting user input while typing
+            systemNotes: prev.systemNotes,
+            instructions: prev.instructions,
+          }
+        })
+      } else {
+        setEntry(data)
+        if (data.customer?.maintenanceNotes) {
+          setMaintenanceNotes(data.customer.maintenanceNotes)
+        }
       }
     } catch (fetchError: unknown) {
       const message =
