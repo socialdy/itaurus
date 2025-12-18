@@ -167,9 +167,9 @@ export default function MaintenanceDetailPage() {
     window.open(`/api/maintenance/${maintenanceId}/report`, "_blank")
   }
 
-  const fetchEntry = useCallback(async () => {
+  const fetchEntry = useCallback(async (silent = false) => {
     if (!maintenanceId) return
-    setLoading(true)
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const response = await fetch(`/api/maintenance/${maintenanceId}`)
@@ -188,7 +188,7 @@ export default function MaintenanceDetailPage() {
           : "Unbekannter Fehler beim Laden des Wartungseintrags."
       setError(message)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
       setIsRefreshing(false)
       setLastRefreshed(new Date())
     }
@@ -246,8 +246,8 @@ export default function MaintenanceDetailPage() {
   // Auto-refresh polling
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchEntry()
-    }, 30000) // 30 seconds
+      fetchEntry(true)
+    }, 10000) // 10 seconds
 
     return () => clearInterval(interval)
   }, [fetchEntry])
