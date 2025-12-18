@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
-import { AlertCircle, FileText, Save, Search, Building2, User, MapPin, Mail, Phone, Users } from "lucide-react"
+import { AlertCircle, FileText, Save, Search, Building2, User, MapPin, Mail, Phone, Users, RotateCw } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { toast } from "sonner"
 
@@ -142,6 +142,10 @@ export default function MaintenanceDetailPage() {
     checkStatus: null,
   });
 
+  // Refresh state
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date())
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
   // System selection state for bulk updates
   const [selectedSystems, setSelectedSystems] = useState<Set<string>>(new Set())
 
@@ -185,6 +189,8 @@ export default function MaintenanceDetailPage() {
       setError(message)
     } finally {
       setLoading(false)
+      setIsRefreshing(false)
+      setLastRefreshed(new Date())
     }
   }, [maintenanceId])
 
@@ -236,6 +242,36 @@ export default function MaintenanceDetailPage() {
       isMounted = false
     }
   }, [entry?.customerId, entry?.systemIds])
+
+  // Auto-refresh polling
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchEntry()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [fetchEntry])
+
+  const handleManualRefresh = () => {
+    setIsRefreshing(true)
+    fetchEntry()
+  }
+
+  const handleSyncSystems = async () => {
+    if (!maintenanceId) return
+    setIsRefreshing(true)
+    try {
+      const response = await fetch(`/api/maintenance/${maintenanceId}/sync`, {
+        method: "POST",
+      })
+      if (!response.ok) throw new Error("Synchronisierung fehlgeschlagen")
+      toast.success("Systeme synchronisiert")
+      await fetchEntry()
+    } catch {
+      toast.error("Fehler bei der Synchronisierung")
+      setIsRefreshing(false)
+    }
+  }
 
   // Auto-assign technician if only one exists
   useEffect(() => {
@@ -536,8 +572,17 @@ export default function MaintenanceDetailPage() {
       }
 
       return true;
+    }).sort((a, b) => {
+      // Sort Ascending (A-Z) by hostname
+      return a.hostname.localeCompare(b.hostname)
     });
   }, [systems, searchQuery, filters, entry?.systemTechnicianAssignments, entry?.systemTrackableItems]);
+
+  // Derive technicians available for this maintenance
+  const maintenanceTechnicians = useMemo(() => {
+    if (!entry?.technicianIds || entry.technicianIds.length === 0) return []
+    return technicians.filter(tech => entry.technicianIds?.includes(tech.id))
+  }, [entry?.technicianIds, technicians])
 
   if (loading) {
     return (
@@ -577,7 +622,18 @@ export default function MaintenanceDetailPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Left Column: Customer Details */}
           <div className="space-y-4">
-            <h1 className="text-3xl font-bold tracking-tight">{entry.title}</h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-3xl font-bold tracking-tight">{entry.title}</h1>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleManualRefresh}
+                className={isRefreshing ? "animate-spin" : ""}
+                title={`Zuletzt aktualisiert: ${lastRefreshed.toLocaleTimeString()}`}
+              >
+                <RotateCw className="h-4 w-4" />
+              </Button>
+            </div>
 
             <div className="space-y-3 p-4 rounded-lg border bg-card">
               {/* Customer Name */}
@@ -790,6 +846,10 @@ export default function MaintenanceDetailPage() {
                     }}
                   >
                     Nicht anwendbar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={handleSyncSystems}>
+                    Systeme synchronisieren
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -1030,16 +1090,18 @@ export default function MaintenanceDetailPage() {
       </div>
 
       {/* Multi-System Bulk Update Bar */}
-      <MultiSystemBulkUpdateBar
-        selectedCount={selectedSystems.size}
-
-        allSelected={selectedSystems.size === filteredSystems.length && filteredSystems.length > 0}
-        technicians={technicians}
-        onToggleSelectAll={handleToggleSelectAll}
-        onBulkUpdate={handleCrossSystemBulkUpdate}
-        onBulkAssignTechnician={handleBulkAssignTechnician}
-        onClearSelection={() => setSelectedSystems(new Set())}
-      />
+      {selectedSystems.size > 0 && (
+        <MultiSystemBulkUpdateBar
+          selectedCount={selectedSystems.size}
+          allSelected={selectedSystems.size === filteredSystems.length && filteredSystems.length > 0}
+          technicians={maintenanceTechnicians.length > 0 ? maintenanceTechnicians : technicians}
+          onToggleSelectAll={handleToggleSelectAll}
+          onBulkUpdate={handleCrossSystemBulkUpdate}
+          onBulkAssignTechnician={handleBulkAssignTechnician}
+          onClearSelection={() => setSelectedSystems(new Set())}
+        />
+      )}
     </div>
   )
 }
+
