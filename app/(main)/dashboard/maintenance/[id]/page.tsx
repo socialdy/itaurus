@@ -258,14 +258,7 @@ export default function MaintenanceDetailPage() {
     }
   }, [entry?.customerId, entry?.systemIds])
 
-  // Auto-refresh polling
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchEntry(true)
-    }, 10000) // 10 seconds
 
-    return () => clearInterval(interval)
-  }, [fetchEntry])
 
   const handleManualRefresh = () => {
     setIsRefreshing(true)
