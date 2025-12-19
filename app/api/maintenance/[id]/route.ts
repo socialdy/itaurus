@@ -35,10 +35,43 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
   try {
     const { id } = await params;
     const updatedFields = await req.json();
+
+    // Fetch existing data to perform safe merging of JSON fields
+    // This prevents race conditions where full-object updates overwrite changes from other users
+    const existingEntry = await getMaintenanceEntryById(id);
+
+    if (!existingEntry) {
+      return NextResponse.json({ message: "Maintenance entry not found" }, { status: 404 });
+    }
+
+    // Merge systemNotes (Partial Update)
+    if (updatedFields.systemNotes) {
+      updatedFields.systemNotes = {
+        ...(existingEntry.systemNotes as Record<string, string> || {}),
+        ...updatedFields.systemNotes
+      };
+    }
+
+    // Merge systemTechnicianAssignments (Partial Update)
+    if (updatedFields.systemTechnicianAssignments) {
+      updatedFields.systemTechnicianAssignments = {
+        ...(existingEntry.systemTechnicianAssignments as Record<string, string[]> || {}),
+        ...updatedFields.systemTechnicianAssignments
+      };
+    }
+
+    // Merge systemTrackableItems (Partial Update)
+    if (updatedFields.systemTrackableItems) {
+      updatedFields.systemTrackableItems = {
+        ...(existingEntry.systemTrackableItems as Record<string, unknown> || {}),
+        ...updatedFields.systemTrackableItems
+      };
+    }
+
     const updatedMaintenanceEntry = await updateMaintenanceEntry(id, updatedFields);
 
     if (!updatedMaintenanceEntry) {
-      return NextResponse.json({ message: "Maintenance entry not found or not updated" }, { status: 404 });
+      return NextResponse.json({ message: "Maintenance entry not updated" }, { status: 404 });
     }
 
     return NextResponse.json(updatedMaintenanceEntry, { status: 200 });

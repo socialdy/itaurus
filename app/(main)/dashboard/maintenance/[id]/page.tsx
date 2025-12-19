@@ -309,19 +309,27 @@ export default function MaintenanceDetailPage() {
     const currentEntry = entryRef.current
     if (!currentEntry || !maintenanceId) return
 
-    const updatedAssignments = {
-      ...currentEntry.systemTechnicianAssignments,
+    const deltaAssignments = {
       [systemId]: technicianId ? [technicianId] : [],
     }
 
-    setEntry(prev => prev ? ({ ...prev, systemTechnicianAssignments: updatedAssignments }) : null)
+    setEntry(prev => {
+      if (!prev) return null
+      return {
+        ...prev,
+        systemTechnicianAssignments: {
+          ...prev.systemTechnicianAssignments,
+          ...deltaAssignments
+        }
+      }
+    })
 
     try {
       const response = await fetch(`/api/maintenance/${maintenanceId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemTechnicianAssignments: updatedAssignments,
+          systemTechnicianAssignments: deltaAssignments,
         }),
       })
 
@@ -337,19 +345,27 @@ export default function MaintenanceDetailPage() {
     const currentEntry = entryRef.current
     if (!currentEntry || !maintenanceId) return
 
-    const updatedNotes = {
-      ...currentEntry.systemNotes,
+    const deltaNotes = {
       [systemId]: note,
     }
 
-    setEntry(prev => prev ? ({ ...prev, systemNotes: updatedNotes }) : null)
+    setEntry(prev => {
+      if (!prev) return null
+      return {
+        ...prev,
+        systemNotes: {
+          ...prev.systemNotes,
+          ...deltaNotes
+        }
+      }
+    })
 
     try {
       const response = await fetch(`/api/maintenance/${maintenanceId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemNotes: updatedNotes,
+          systemNotes: deltaNotes,
         }),
       })
 
@@ -367,19 +383,27 @@ export default function MaintenanceDetailPage() {
 
     const currentSystemItems = currentEntry.systemTrackableItems?.[systemId] || {}
     const updatedSystemItems = { ...currentSystemItems, ...updates }
-    const updatedTrackableItems = {
-      ...currentEntry.systemTrackableItems,
+    const deltaTrackableItems = {
       [systemId]: updatedSystemItems,
     }
 
-    setEntry(prev => prev ? ({ ...prev, systemTrackableItems: updatedTrackableItems }) : null)
+    setEntry(prev => {
+      if (!prev) return null
+      return {
+        ...prev,
+        systemTrackableItems: {
+          ...prev.systemTrackableItems,
+          ...deltaTrackableItems
+        }
+      }
+    })
 
     try {
       const response = await fetch(`/api/maintenance/${maintenanceId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemTrackableItems: updatedTrackableItems,
+          systemTrackableItems: deltaTrackableItems,
         }),
       })
 
@@ -394,20 +418,29 @@ export default function MaintenanceDetailPage() {
     const currentEntry = entryRef.current
     if (!currentEntry || !maintenanceId || selectedSystems.size === 0) return
 
-    const updatedAssignments = { ...currentEntry.systemTechnicianAssignments }
+    const deltaAssignments: Record<string, string[]> = {}
 
     selectedSystems.forEach(systemId => {
-      updatedAssignments[systemId] = technicianId ? [technicianId] : []
+      deltaAssignments[systemId] = technicianId ? [technicianId] : []
     })
 
-    setEntry(prev => prev ? ({ ...prev, systemTechnicianAssignments: updatedAssignments }) : null)
+    setEntry(prev => {
+      if (!prev) return null
+      return {
+        ...prev,
+        systemTechnicianAssignments: {
+          ...prev.systemTechnicianAssignments,
+          ...deltaAssignments
+        }
+      }
+    })
 
     try {
       const response = await fetch(`/api/maintenance/${maintenanceId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemTechnicianAssignments: updatedAssignments,
+          systemTechnicianAssignments: deltaAssignments,
         }),
       })
 
@@ -443,13 +476,13 @@ export default function MaintenanceDetailPage() {
   const handleCrossSystemBulkUpdate = async (status: string) => {
     if (!entry || selectedSystems.size === 0) return
 
-    const updatedTrackableItems = { ...entry.systemTrackableItems }
+    const deltaTrackableItems: Record<string, Record<string, string>> = {}
 
-    // Update ALL trackable items for each selected system
+    // Update ALL trackable items for each selected system (delta only)
     selectedSystems.forEach(systemId => {
-      const currentSystemItems = updatedTrackableItems[systemId] || {}
+      const currentSystemItems = entry.systemTrackableItems?.[systemId] || {}
       // Set all trackable items to the selected status
-      updatedTrackableItems[systemId] = {
+      deltaTrackableItems[systemId] = {
         ...currentSystemItems,
         system_load: status,
         vmware_tools: status,
@@ -465,14 +498,23 @@ export default function MaintenanceDetailPage() {
     })
 
     // Optimistic update
-    setEntry({ ...entry, systemTrackableItems: updatedTrackableItems })
+    setEntry(prev => {
+      if (!prev) return null
+      return {
+        ...prev,
+        systemTrackableItems: {
+          ...prev.systemTrackableItems,
+          ...deltaTrackableItems
+        }
+      }
+    })
 
     try {
       const response = await fetch(`/api/maintenance/${entry.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemTrackableItems: updatedTrackableItems,
+          systemTrackableItems: deltaTrackableItems,
         }),
       })
 
