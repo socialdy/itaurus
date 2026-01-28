@@ -90,6 +90,7 @@ type ApiSystem = {
   operatingSystem?: string | null
   serverApplicationType?: string | null
   maintenanceInterval?: string | null
+  maintenanceTechnician?: string | null
   installedSoftware?: string[] | null
 }
 
@@ -272,18 +273,32 @@ export default function MaintenanceDetailPage() {
     fetchEntry()
   }
 
-  // Auto-assign technician if only one exists
+  // Auto-assign technician based on system's maintenanceTechnician field
   useEffect(() => {
-    if (technicians.length === 1 && systems.length > 0 && entry) {
-      const singleTechId = technicians[0].id;
+    if (systems.length > 0 && entry && technicians.length > 0) {
       const updates: Record<string, string[]> = {};
       let hasUpdates = false;
 
       systems.forEach(sys => {
         const currentAssign = entry.systemTechnicianAssignments?.[sys.id];
+        // Only auto-assign if no technician is currently assigned
         if (!currentAssign || currentAssign.length === 0) {
-          updates[sys.id] = [singleTechId];
-          hasUpdates = true;
+          // Try to find matching technician by maintenanceTechnician name
+          if (sys.maintenanceTechnician) {
+            const matchingTech = technicians.find(
+              t => t.id.toLowerCase() === sys.maintenanceTechnician!.toLowerCase() ||
+                t.label?.toLowerCase() === sys.maintenanceTechnician!.toLowerCase()
+            );
+            if (matchingTech) {
+              updates[sys.id] = [matchingTech.id];
+              hasUpdates = true;
+            }
+          }
+          // Fallback: If only one technician exists and no maintenanceTechnician, use that one
+          else if (technicians.length === 1) {
+            updates[sys.id] = [technicians[0].id];
+            hasUpdates = true;
+          }
         }
       });
 

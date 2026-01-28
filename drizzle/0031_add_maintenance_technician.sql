@@ -1,0 +1,1 @@
+ALTER TABLE "system" ADD COLUMN "maintenance_technician" text;

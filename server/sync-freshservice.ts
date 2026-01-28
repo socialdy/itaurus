@@ -270,6 +270,7 @@ export async function syncFsSystems() {
     let os: string | null = null;
     let serverRole: string | null = null;
     let maintenanceInterval: string | null = null;
+    let maintenanceTechnician: string | null = null;
     let computeType: string | null = null;
 
     for (const key in typeFields) {
@@ -279,6 +280,7 @@ export async function syncFsSystems() {
         serverRole = String(typeFields[key]).trim();
       }
       if (key.startsWith("wartungsintervall_")) maintenanceInterval = String(typeFields[key]).trim();
+      if (key.startsWith("wartungstechniker_")) maintenanceTechnician = String(typeFields[key]).trim();
       if (key.startsWith("compute_type_")) computeType = String(typeFields[key]).trim();
     }
 
@@ -295,6 +297,7 @@ export async function syncFsSystems() {
       serverApplicationType: mappedServerApplicationType, // Use mapping function
       installedSoftware: installedSoftwareByAssetId.get(fsId) || [], // New: Get installed software
       maintenanceInterval: maintenanceInterval,
+      maintenanceTechnician: maintenanceTechnician,
       updatedAt: new Date(updatedAt),
     } satisfies Partial<typeof system.$inferInsert>;
 
@@ -316,6 +319,7 @@ export async function syncFsSystems() {
         if (data.serverApplicationType !== existingSystem.serverApplicationType) { patch.serverApplicationType = data.serverApplicationType; changed = true; }
         if (JSON.stringify(data.installedSoftware) !== JSON.stringify(existingSystem.installedSoftware)) { patch.installedSoftware = data.installedSoftware; changed = true; }
         if (data.maintenanceInterval !== existingSystem.maintenanceInterval) { patch.maintenanceInterval = data.maintenanceInterval; changed = true; }
+        if (data.maintenanceTechnician !== existingSystem.maintenanceTechnician) { patch.maintenanceTechnician = data.maintenanceTechnician; changed = true; }
         if (data.updatedAt.toISOString() !== existingSystem.updatedAt?.toISOString()) { patch.updatedAt = data.updatedAt; changed = true; }
 
         // Check if customerId needs to be updated

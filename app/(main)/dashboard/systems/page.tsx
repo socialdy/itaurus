@@ -49,6 +49,7 @@ type SystemEntry = {
   operatingSystem?: string | null
   serverApplicationType?: string | null
   maintenanceInterval?: string | null
+  maintenanceTechnician?: string | null
   installedSoftware?: string[] | null
   customerId?: string | null
   customer?: { id: string; name: string; abbreviation: string }
@@ -538,6 +539,14 @@ export default function SystemsPage() {
                     onSort={requestSort}
                     className=""
                   />
+                  <SortableTableHead<SystemEntry>
+                    label="Techniker"
+                    sortKey="maintenanceTechnician"
+                    currentSortKey={sortConfig.key}
+                    currentDirection={sortConfig.direction}
+                    onSort={requestSort}
+                    className=""
+                  />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -559,6 +568,9 @@ export default function SystemsPage() {
                     </TableCell>
                     <TableCell className="align-top">
                       {system.maintenanceInterval && system.maintenanceInterval !== "null" ? system.maintenanceInterval : ""}
+                    </TableCell>
+                    <TableCell className="align-top">
+                      {system.maintenanceTechnician && system.maintenanceTechnician !== "null" ? system.maintenanceTechnician : ""}
                     </TableCell>
                   </TableRow>
                 ))}

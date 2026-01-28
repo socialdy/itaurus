@@ -218,6 +218,13 @@
       "when": 1765444462817,
       "tag": "0030_mighty_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1769593787853,
+      "tag": "0031_add_maintenance_technician",
+      "breakpoints": true
     }
   ]
 }

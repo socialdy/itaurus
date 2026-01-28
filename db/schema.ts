@@ -199,6 +199,7 @@ export const system = pgTable("system", {
 	serverApplicationType: serverApplicationTypeEnum('server_application_type'),
 	installedSoftware: text("installed_software").array().default([]), // New: Array of installed software
 	maintenanceInterval: text("maintenance_interval"), // New: maintenanceInterval field
+	maintenanceTechnician: text("maintenance_technician"), // Wartungstechniker from Freshservice
 	createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
 	updatedAt: timestamp("updated_at").$defaultFn(() => new Date()).notNull(),
 }, (table) => [
