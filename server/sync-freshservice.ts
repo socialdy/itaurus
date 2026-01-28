@@ -2,7 +2,7 @@
 
 import { eq, inArray } from "drizzle-orm";
 import db from "@/db/drizzle";
-import { customer, contactPerson } from "@/db/schema";
+import { customer, contactPerson, settings } from "@/db/schema";
 import { fsGetAssets, fsGetAgents, fsGetDepartments, fsGetRequesters } from "./freshservice-api";
 import { v4 as uuidv4 } from 'uuid';
 import { getCursor, setCursor } from "./fs-settings";
@@ -348,6 +348,7 @@ export async function syncFsSystems() {
 export async function syncFsAgents() {
   const last = await getCursor(CURSOR_FS_AGENTS);
   const agents = await fsGetAgents();
+  console.log(`[FS] Agents fetched: count=${agents?.length ?? 0}`);
 
   // Build map Freshservice Department -> local customer.id
   const existingCustomers = await db.select({ id: customer.id, fs: customer.freshserviceId }).from(customer);
@@ -378,8 +379,10 @@ export async function syncFsAgents() {
     const localCustomerId = primaryDeptId ? customerIdByFsId.get(primaryDeptId) : undefined;
 
     if (!localCustomerId) {
-      // Skip agents not mapped to a known department/customer
+      console.log(`[FS] SKIP: Agent ID=${fsId} (${a.first_name} ${a.last_name}) - No local customer mapping for Dept IDs: ${JSON.stringify(deptIds)}`);
       continue;
+    } else {
+      console.log(`[FS] SYNC: Agent ID=${fsId} (${a.first_name} ${a.last_name}) mapped to Customer: ${localCustomerId}`);
     }
 
     const data = {
@@ -424,6 +427,29 @@ export async function syncFsAgents() {
   });
 
   await setCursor(CURSOR_FS_AGENTS, maxUpdated);
+
+  // --- AUTOMATION: Sync all active agent names into the 'technicians' setting ---
+  try {
+    const allAgentNames = agents
+      .filter(a => a.active !== false && (a.first_name || a.last_name))
+      .map(a => [a.first_name, a.last_name].filter(Boolean).join(" "));
+
+    if (allAgentNames.length > 0) {
+      const existingSetting = await db.select().from(settings).where(eq(settings.key, 'technicians'));
+      // Merge unique names with existing manually added ones
+      const currentTechs = (existingSetting[0]?.value as string[]) || [];
+      const mergedTechs = Array.from(new Set([...currentTechs, ...allAgentNames]));
+
+      if (existingSetting.length > 0) {
+        await db.update(settings).set({ value: mergedTechs, updatedAt: new Date() }).where(eq(settings.key, 'technicians'));
+      } else {
+        await db.insert(settings).values({ key: 'technicians', value: mergedTechs, createdAt: new Date(), updatedAt: new Date() });
+      }
+      console.log(`[FS] Updated 'technicians' setting with ${allAgentNames.length} names.`);
+    }
+  } catch (err) {
+    console.error(`[FS] Error updating technicians setting:`, err);
+  }
 }
 
 // Sync Freshservice Requesters (Contacts) into local contact_person table
