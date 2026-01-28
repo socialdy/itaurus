@@ -181,21 +181,21 @@ export default function SettingsPage() {
 
       <PageHeader
         title="Einstellungen"
-        description="Hier können Sie die Techniker verwalten."
+        description="Hier können Sie die Wartungskoordinatoren verwalten."
       />
 
       <Card className="w-full">
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between w-full">
             <div>
-              <CardTitle>Techniker verwalten</CardTitle>
+              <CardTitle>Wartungskoordinatoren verwalten</CardTitle>
               <CardDescription>
-                Fügen Sie Techniker hinzu oder entfernen Sie diese. Diese werden in den Wartungs-Dropdowns angezeigt.
+                Fügen Sie Wartungskoordinatoren hinzu oder entfernen Sie diese. Diese werden in den Wartungs-Dropdowns angezeigt.
               </CardDescription>
             </div>
             <Button onClick={openAddDialog} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
-              Techniker hinzufügen
+              Wartungskoordinator hinzufügen
             </Button>
           </div>
         </CardHeader>
@@ -255,9 +255,9 @@ export default function SettingsPage() {
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="max-w-md w-[95vw] sm:w-full rounded-lg">
           <DialogHeader>
-            <DialogTitle>{editingTechnician ? 'Techniker bearbeiten' : 'Techniker hinzufügen'}</DialogTitle>
+            <DialogTitle>{editingTechnician ? 'Wartungskoordinator bearbeiten' : 'Wartungskoordinator hinzufügen'}</DialogTitle>
             <DialogDescription>
-              {editingTechnician ? 'Bearbeiten Sie den Namen des Technikers.' : 'Geben Sie den Namen des neuen Technikers ein.'}
+              {editingTechnician ? 'Bearbeiten Sie den Namen des Wartungskoordinators.' : 'Geben Sie den Namen des neuen Wartungskoordinators ein.'}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -289,9 +289,9 @@ export default function SettingsPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="max-w-md w-[95vw] sm:w-full rounded-lg">
           <DialogHeader>
-            <DialogTitle>Techniker löschen</DialogTitle>
+            <DialogTitle>Wartungskoordinator löschen</DialogTitle>
             <DialogDescription>
-              Sind Sie sicher, dass Sie den Techniker <strong>{technicianToDelete}</strong> löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
+              Sind Sie sicher, dass Sie den Wartungskoordinator <strong>{technicianToDelete}</strong> löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
