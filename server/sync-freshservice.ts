@@ -32,7 +32,7 @@ function makeAbbreviation(name: string): string {
   const trimmed = (name || '').trim();
   if (!trimmed) return "CUST";
   const parts = trimmed.split(/\s+/);
-  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase().padEnd(4, parts[0].slice(1,4).toUpperCase());
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase().padEnd(4, parts[0].slice(1, 4).toUpperCase());
   return trimmed.slice(0, 4).toUpperCase();
 }
 
@@ -212,7 +212,7 @@ export async function syncFsSystems() {
         console.warn(`Warning: Could not find Freshservice Asset ID for installation_machine_id: ${installationMachineId}. Skipping software '${app.name}'.`);
         continue; // Skip if we can't map to a real asset ID
       }
-      
+
       if (!installedSoftwareByAssetId.has(freshserviceAssetId)) {
         installedSoftwareByAssetId.set(freshserviceAssetId, []);
       }
@@ -431,19 +431,15 @@ export async function syncFsRequesters() {
   const last = await getCursor(CURSOR_FS_REQUESTERS);
   const requesters = await fsGetRequesters();
   console.log(`[FS] Requesters fetched: count=${requesters?.length ?? 0}`);
-  console.log(`[FS] Raw requesters from Freshservice:`, JSON.stringify(requesters, null, 2));
 
   const isEligible = (r: any): boolean => {
-    console.log(`[FS] Checking requester ID: ${r.id}, Name: ${r.name || r.first_name}, Ansprechpartner: ${r.custom_fields?.ansprechpartner}`);
-    return r.custom_fields?.ansprechpartner === true;
+    // Verified: field name is 'ansprechpartner' and values are true/false/null
+    const eligible = r.custom_fields?.ansprechpartner === true;
+    return eligible;
   };
 
   const filtered = Array.isArray(requesters) ? requesters.filter(isEligible) : [];
-  console.log(`[FS] Requesters eligible (custom_field Ansprechpartner=Ja): ${filtered.length}`);
-  console.log(`[FS] Filtered requesters:`, JSON.stringify(filtered, null, 2));
-  if (filtered.length > 0) {
-    console.log(`[FS] Eligible sample (first 3):`, filtered.slice(0, 3));
-  }
+  console.log(`[FS] Requesters passing 'Ansprechpartner' check (should be ~20): ${filtered.length}`);
 
   const existingCustomers = await db.select({ id: customer.id, fs: customer.freshserviceId, name: customer.name }).from(customer);
   const customerIdByFsId = new Map<string, string>();
@@ -486,10 +482,10 @@ export async function syncFsRequesters() {
 
     const name = [r.first_name, r.last_name].filter(Boolean).join(" ") || r.name || r.primary_email;
     if (!localCustomerId) {
-      console.warn(`[FS] Requester ID=${r.id} (${name}) could not be mapped to a customer. Dept IDs: ${JSON.stringify(deptIds)}, Dept Names: ${JSON.stringify(r.department_names)}. Skipping.`);
+      console.warn(`[FS] SKIP: Requester ID=${r.id} (${name}) found as ansprechpartner but could NOT be mapped to a customer. Dept IDs: ${JSON.stringify(deptIds)}, Dept Names: ${JSON.stringify(r.department_names)}`);
       continue;
     } else {
-      console.log(`[FS] Requester ID=${r.id} (${name}) mapped to local Customer ID: ${localCustomerId}`);
+      console.log(`[FS] SYNC: Requester ID=${r.id} (${name}) mapped to Customer: ${localCustomerId}`);
     }
 
     const phone = String(r.work_phone_number || r.mobile_phone_number || "") || "";
