@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { AlertTriangle, PlusCircle, Search, MoreHorizontal, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -75,6 +75,7 @@ const statusLabel: Record<MaintenanceStatus, string> = {
 
 export default function MaintenanceOverviewPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [entries, setEntries] = useState<MaintenanceEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -82,6 +83,7 @@ export default function MaintenanceOverviewPage() {
   const [activeFilter, setActiveFilter] = useState<"all" | MaintenanceStatus>("all")
   const [technicianFilter, setTechnicianFilter] = useState<string>("all")
   const [customerFilter, setCustomerFilter] = useState<string>("all")
+  const [specialFilter, setSpecialFilter] = useState<"none" | "overdue" | "today">("none")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [editingEntry, setEditingEntry] = useState<MaintenanceEntry | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -125,6 +127,35 @@ export default function MaintenanceOverviewPage() {
     fetchEntries()
   }, [fetchEntries])
 
+  // Read URL filter parameter on mount
+  useEffect(() => {
+    const filterParam = searchParams.get('filter')
+    if (filterParam) {
+      switch (filterParam) {
+        case 'planned':
+          setActiveFilter('Planned')
+          setSpecialFilter('none')
+          break
+        case 'inprogress':
+          setActiveFilter('InProgress')
+          setSpecialFilter('none')
+          break
+        case 'completed':
+          setActiveFilter('OK')
+          setSpecialFilter('none')
+          break
+        case 'overdue':
+          setActiveFilter('all')
+          setSpecialFilter('overdue')
+          break
+        case 'today':
+          setActiveFilter('Planned')
+          setSpecialFilter('today')
+          break
+      }
+    }
+  }, [searchParams])
+
   // Prefetch dialog data on mount
   useEffect(() => {
     const loadDialogData = async () => {
@@ -152,6 +183,9 @@ export default function MaintenanceOverviewPage() {
   }, [])
 
   const filteredEntries = useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
     return entries.filter((entry) => {
       const matchesFilter =
         activeFilter === "all" ? true : entry.status === activeFilter
@@ -165,9 +199,21 @@ export default function MaintenanceOverviewPage() {
         technicianFilter === "all" ? true : entry.technicianIds?.includes(technicianFilter)
       const matchesCustomer =
         customerFilter === "all" ? true : entry.customerId === customerFilter
-      return matchesFilter && matchesSearch && matchesTechnician && matchesCustomer
+
+      // Special filters: overdue and today
+      let matchesSpecialFilter = true
+      if (specialFilter === 'overdue') {
+        const entryDate = new Date(entry.date)
+        entryDate.setHours(0, 0, 0, 0)
+        matchesSpecialFilter = entryDate < today && entry.status !== 'OK' && entry.status !== 'Error' && entry.status !== 'NotApplicable'
+      } else if (specialFilter === 'today') {
+        const entryDate = new Date(entry.date)
+        matchesSpecialFilter = entryDate.toDateString() === today.toDateString()
+      }
+
+      return matchesFilter && matchesSearch && matchesTechnician && matchesCustomer && matchesSpecialFilter
     })
-  }, [entries, activeFilter, searchTerm, technicianFilter, customerFilter])
+  }, [entries, activeFilter, searchTerm, technicianFilter, customerFilter, specialFilter])
 
   // Sorting
   const { sortedData, sortConfig, requestSort } = useSortableTable(filteredEntries, "date" as keyof MaintenanceEntry)
@@ -381,6 +427,7 @@ export default function MaintenanceOverviewPage() {
                     setActiveFilter("all")
                     setTechnicianFilter("all")
                     setCustomerFilter("all")
+                    setSpecialFilter("none")
                   }}>
                     Filter zurücksetzen
                   </DropdownMenuItem>

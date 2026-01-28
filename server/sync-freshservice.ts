@@ -641,10 +641,13 @@ export async function syncAllFreshservice() {
   }
 
   try {
-    await syncFsAgents();
-    results.push({ entity: 'agents', ok: true });
+    // NOTE: syncFsAgents intentionally removed - agents (internal IT employees) are manually managed
+    // and should not be synced from Freshservice. Use Settings page to manage technicians.
+    // await syncFsAgents();
+    // results.push({ entity: 'agents', ok: true });
   } catch (e: any) {
-    results.push({ entity: 'agents', ok: false, error: e?.message || String(e) });
+    // agents sync disabled
+    // results.push({ entity: 'agents', ok: false, error: e?.message || String(e) });
   }
 
   const ok = results.every(r => r.ok);

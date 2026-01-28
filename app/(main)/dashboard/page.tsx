@@ -370,7 +370,10 @@ export default function DashboardPage() {
       />
       {/* Statistik-Karten (farbig, größere Icons und Flächen) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-6">
-        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+        <Card
+          className="hover:shadow-md transition-all duration-200 border-border/60 cursor-pointer hover:border-blue-300"
+          onClick={() => router.push('/dashboard/maintenance?filter=planned')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
             <CardTitle className="text-sm font-medium text-muted-foreground">Geplante Wartungen</CardTitle>
             <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-blue-500/10">
@@ -381,7 +384,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-foreground">{upcomingCount}</div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+        <Card
+          className="hover:shadow-md transition-all duration-200 border-border/60 cursor-pointer hover:border-amber-300"
+          onClick={() => router.push('/dashboard/maintenance?filter=inprogress')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
             <CardTitle className="text-sm font-medium text-muted-foreground">Offene Wartungen</CardTitle>
             <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-amber-500/10">
@@ -392,7 +398,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-foreground">{inProgressCount}</div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+        <Card
+          className="hover:shadow-md transition-all duration-200 border-border/60 cursor-pointer hover:border-orange-300"
+          onClick={() => router.push('/dashboard/maintenance?filter=today')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
             <CardTitle className="text-sm font-medium text-muted-foreground">Heute anstehend</CardTitle>
             <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-orange-500/10">
@@ -403,7 +412,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-foreground">{maintenanceTasksForCalendar.filter(entry => new Date(entry.date).toDateString() === today.toDateString() && entry.status === 'Planned').length}</div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+        <Card
+          className="hover:shadow-md transition-all duration-200 border-border/60 cursor-pointer hover:border-emerald-300"
+          onClick={() => router.push('/dashboard/maintenance?filter=completed')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
             <CardTitle className="text-sm font-medium text-muted-foreground">Abgeschlossen</CardTitle>
             <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-emerald-500/10">
@@ -414,7 +426,10 @@ export default function DashboardPage() {
             <div className="text-2xl font-bold text-foreground">{completedCount}</div>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-md transition-all duration-200 border-border/60">
+        <Card
+          className="hover:shadow-md transition-all duration-200 border-border/60 cursor-pointer hover:border-red-300"
+          onClick={() => router.push('/dashboard/maintenance?filter=overdue')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0 p-6">
             <CardTitle className="text-sm font-medium text-muted-foreground">Verpasste Wartungen</CardTitle>
             <div className="h-8 w-8 rounded-lg flex items-center justify-center bg-red-500/10">
