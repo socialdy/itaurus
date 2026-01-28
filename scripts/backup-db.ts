@@ -9,9 +9,10 @@
  * 
  * Requirements:
  *   - pg_dump must be installed and available in PATH
- *   - DATABASE_URL environment variable must be set
+ *   - DATABASE_URL environment variable must be set (or in .env file)
  */
 
+import 'dotenv/config';
 import { execSync } from 'child_process';
 import { mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
