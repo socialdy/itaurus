@@ -415,15 +415,14 @@ export async function syncFsAgents() {
     }
   }
 
-  // Delete contacts that originated from FS but are no longer present
-  for (const c of existingContacts) {
-    if (c.freshserviceId && !seenFsIds.has(c.freshserviceId)) toDelete.push(c.id);
-  }
+  // NOTE: Do NOT delete contacts here - agents and requesters share the contactPerson table.
+  // The syncFsRequesters function is the primary source for contact_person entries and handles deletions.
+  // Agent sync should only add/update, never delete, to prevent cross-deletion of requester contacts.
 
   await db.transaction(async (tx) => {
     for (const batch of chunk(toInsert)) await tx.insert(contactPerson).values(batch);
     for (const u of toUpdate) await tx.update(contactPerson).set(u.patch).where(eq(contactPerson.id, u.id));
-    if (toDelete.length > 0) await tx.delete(contactPerson).where(inArray(contactPerson.id, toDelete));
+    // toDelete is intentionally ignored for agents
   });
 
   await setCursor(CURSOR_FS_AGENTS, maxUpdated);
@@ -547,14 +546,19 @@ export async function syncFsRequesters() {
   }
   console.log(`[FS] Contacts to insert:`, JSON.stringify(toInsert, null, 2));
 
-  for (const c of existingContacts) {
-    if (c.freshserviceId && !seenFsIds.has(c.freshserviceId)) toDelete.push(c.id);
-  }
+  // NOTE: Automatic deletion disabled - agents and requesters share the contactPerson table.
+  // Without an origin field to track whether a contact came from agents or requesters,
+  // we cannot safely delete without risking cross-deletion.
+  // To enable safe deletion in the future, add an 'origin' field to contactPerson schema.
+  // for (const c of existingContacts) {
+  //   if (c.freshserviceId && !seenFsIds.has(c.freshserviceId)) toDelete.push(c.id);
+  // }
 
   await db.transaction(async (tx) => {
     for (const batch of chunk(toInsert)) await tx.insert(contactPerson).values(batch);
     for (const u of toUpdate) await tx.update(contactPerson).set(u.patch).where(eq(contactPerson.id, u.id));
-    if (toDelete.length > 0) await tx.delete(contactPerson).where(inArray(contactPerson.id, toDelete));
+    // Deletion disabled - see comment above
+    // if (toDelete.length > 0) await tx.delete(contactPerson).where(inArray(contactPerson.id, toDelete));
   });
 
   console.log(`[FS] Requesters upsert summary: inserted=${toInsert.length}, updated=${toUpdate.length}, deleted=${toDelete.length}`);
