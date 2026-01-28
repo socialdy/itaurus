@@ -58,7 +58,7 @@ type MaintenanceEntry = {
   customerId?: string
   customer?: { id: string; name: string; abbreviation: string }
   systemIds?: string[] | null
-  technicianIds?: string[] | null
+  coordinatorId?: string | null
   updatedAt?: string | null
 }
 
@@ -194,9 +194,10 @@ export default function MaintenanceOverviewPage() {
         term.length === 0 ||
         entry.title.toLowerCase().includes(term) ||
         entry.customer?.name.toLowerCase().includes(term) ||
-        entry.customer?.abbreviation.toLowerCase().includes(term)
+        entry.customer?.abbreviation.toLowerCase().includes(term) ||
+        entry.coordinatorId?.toLowerCase().includes(term)
       const matchesTechnician =
-        technicianFilter === "all" ? true : entry.technicianIds?.includes(technicianFilter)
+        technicianFilter === "all" ? true : entry.coordinatorId === technicianFilter
       const matchesCustomer =
         customerFilter === "all" ? true : entry.customerId === customerFilter
 
@@ -258,7 +259,7 @@ export default function MaintenanceOverviewPage() {
         body: JSON.stringify({
           customerId: data.customerId,
           systemIds: data.systemIds ?? [],
-          technicianIds: data.technicianIds ?? [],
+          coordinatorId: data.coordinatorId,
           date: data.date,
         }),
       })
@@ -311,7 +312,7 @@ export default function MaintenanceOverviewPage() {
         body: JSON.stringify({
           customerId: data.customerId,
           systemIds: data.systemIds ?? [],
-          technicianIds: data.technicianIds ?? [],
+          coordinatorId: data.coordinatorId,
           date: data.date,
           status: "Planned",
         }),
@@ -387,7 +388,7 @@ export default function MaintenanceOverviewPage() {
                     </DropdownMenuPortal>
                   </DropdownMenuSub>
                   <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>Techniker</DropdownMenuSubTrigger>
+                    <DropdownMenuSubTrigger>Wartungskoordinator</DropdownMenuSubTrigger>
                     <DropdownMenuPortal>
                       <DropdownMenuSubContent>
                         <DropdownMenuItem onSelect={() => setTechnicianFilter("all")}>
@@ -478,7 +479,7 @@ export default function MaintenanceOverviewPage() {
                     className="px-4 py-2 text-xs md:text-sm"
                   />
                   <TableHead className="px-4 py-2 text-xs md:text-sm">Kunde</TableHead>
-                  <TableHead className="px-4 py-2 text-xs md:text-sm">Techniker</TableHead>
+                  <TableHead className="px-4 py-2 text-xs md:text-sm">Koordinator</TableHead>
                   <SortableTableHead<MaintenanceEntry>
                     label="Status"
                     sortKey="status"
@@ -512,9 +513,7 @@ export default function MaintenanceOverviewPage() {
                         : "–"}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-xs md:text-sm">
-                      {entry.technicianIds && entry.technicianIds.length > 0
-                        ? entry.technicianIds.join(", ")
-                        : "–"}
+                      {entry.coordinatorId || "–"}
                     </TableCell>
                     <TableCell className="px-4 py-3 text-xs md:text-sm">{renderStatusBadge(entry.status)}</TableCell>
                     <TableCell className="px-4 py-3 text-xs md:text-sm text-right">
@@ -597,7 +596,7 @@ export default function MaintenanceOverviewPage() {
                 id: editingEntry.id,
                 customerId: editingEntry.customerId,
                 systemIds: editingEntry.systemIds || [],
-                technicianIds: editingEntry.technicianIds || [],
+                coordinatorId: editingEntry.coordinatorId || "",
                 date: editingEntry.date,
               }}
               customers={dialogCustomers}

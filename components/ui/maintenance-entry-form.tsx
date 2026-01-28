@@ -13,10 +13,6 @@ import {
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Combobox, ComboboxOption } from "@/components/ui/combobox";
-import { Check, ChevronsUpDown } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 interface Customer {
   id: string;
@@ -36,7 +32,7 @@ export const maintenanceEntrySchema = z.object({
   id: z.string().optional(),
   customerId: z.string().min(1, "Kunde muss ausgewählt sein"),
   systemIds: z.array(z.string()).optional(),
-  technicianIds: z.array(z.string()).optional(),
+  coordinatorId: z.string().min(1, "Wartungskoordinator muss ausgewählt sein"),
   date: z.string().min(1, "Datum und Uhrzeit müssen angegeben werden."),
 });
 
@@ -74,7 +70,7 @@ export function MaintenanceEntryForm({
       id: initialData?.id || undefined,
       customerId: initialData?.customerId || "",
       systemIds: initialData?.systemIds || [],
-      technicianIds: initialData?.technicianIds || [],
+      coordinatorId: initialData?.coordinatorId || "",
       date: initialData?.date || new Date().toISOString().slice(0, 16),
     },
   });
@@ -92,8 +88,6 @@ export function MaintenanceEntryForm({
     value: tech,
     label: tech,
   }));
-
-  const selectedTechnicianIds = form.watch("technicianIds") || [];
 
   React.useEffect(() => {
     if (selectedCustomerId) {
@@ -146,63 +140,22 @@ export function MaintenanceEntryForm({
 
         <FormField
           control={form.control}
-          name="technicianIds"
+          name="coordinatorId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Techniker</FormLabel>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <FormControl>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={false}
-                      className={cn(
-                        "w-full justify-between",
-                        !selectedTechnicianIds.length && "text-muted-foreground"
-                      )}
-                    >
-                      {selectedTechnicianIds.length > 0
-                        ? selectedTechnicianIds.map(id => technicianOptions.find(opt => opt.value === id)?.label || id).join(", ")
-                        : "Techniker auswählen..."}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </FormControl>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                  <Command>
-                    <CommandInput placeholder="Techniker suchen..." />
-                    <CommandList>
-                      <CommandEmpty>Kein Techniker gefunden.</CommandEmpty>
-                      <CommandGroup>
-                        {technicianOptions.map((option) => (
-                          <CommandItem
-                            key={option.value}
-                            value={option.label}
-                            onSelect={() => {
-                              const currentSelected = new Set(field.value || []);
-                              if (currentSelected.has(option.value)) {
-                                currentSelected.delete(option.value);
-                              } else {
-                                currentSelected.add(option.value);
-                              }
-                              field.onChange(Array.from(currentSelected));
-                            }}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                (field.value || []).includes(option.value) ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            {option.label}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </PopoverContent>
-              </Popover>
+              <FormLabel>Wartungskoordinator</FormLabel>
+              <FormControl>
+                <Combobox
+                  options={technicianOptions}
+                  value={field.value}
+                  onChange={(value) => {
+                    field.onChange(value);
+                  }}
+                  placeholder="Koordinator auswählen..."
+                  emptyStateMessage="Kein Koordinator gefunden."
+                  searchPlaceholder="Koordinator suchen..."
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

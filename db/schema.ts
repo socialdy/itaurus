@@ -94,6 +94,7 @@ export const maintenance = pgTable("maintenance", {
 	systemTechnicianAssignments: jsonb("system_technician_assignments").$type<Record<string, string[]>>().default({}), // New: Technician assignments per system (systemId -> [technicianId, ...])
 	systemTrackableItems: jsonb("system_trackable_items").$type<Record<string, Record<string, string | undefined>>>().default({}), // New: Trackable items statuses per system
 	technicianIds: text("technician_ids").array(), // Changed from technicianId to technicianIds (array)
+	coordinatorId: text("coordinator_id"), // New: Single coordinator for the maintenance entry
 	date: timestamp({ mode: 'string' }).notNull(),
 	notes: text(),
 	instructions: text(), // New: Instructions field

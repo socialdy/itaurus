@@ -29,7 +29,7 @@ interface MaintenanceEntry {
   date: string; // ISO string
   status: 'OK' | 'Error' | 'InProgress' | 'NotApplicable' | 'Planned' | 'NotDone';
   customer?: { name: string; abbreviation: string };
-  technicianIds?: string[] | null;
+  coordinatorId?: string | null;
 }
 
 interface DialogCustomer {
@@ -208,7 +208,7 @@ export default function DashboardPage() {
   const maintenanceTasksForCalendar = maintenanceEntries.filter(entry => {
     const entryDate = new Date(entry.date);
     const matchesMonth = entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear;
-    const matchesTechnician = technicianFilter === "all" ? true : entry.technicianIds?.includes(technicianFilter);
+    const matchesTechnician = technicianFilter === "all" ? true : entry.coordinatorId === technicianFilter;
     return matchesMonth && matchesTechnician;
   });
 
@@ -448,14 +448,14 @@ export default function DashboardPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm" className="h-8">
-                {technicianFilter === "all" ? "Alle Techniker" : technicianFilter}
+                {technicianFilter === "all" ? "Alle Koordinatoren" : technicianFilter}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Techniker filtern</DropdownMenuLabel>
+              <DropdownMenuLabel>Nach Koordinator filtern</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setTechnicianFilter("all")}>
-                Alle Techniker
+                Alle Koordinatoren
               </DropdownMenuItem>
               {technicians.map(tech => (
                 <DropdownMenuItem key={tech} onClick={() => setTechnicianFilter(tech)}>

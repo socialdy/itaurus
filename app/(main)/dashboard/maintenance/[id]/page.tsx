@@ -75,7 +75,7 @@ type MaintenanceDetail = {
     contactPeople?: ContactPerson[];
   }
   systemIds?: string[] | null
-  technicianIds?: string[] | null
+  coordinatorId?: string | null
   systemNotes?: Record<string, string>
   systemTechnicianAssignments?: Record<string, string[]>
   systemTrackableItems?: Record<string, Record<string, string | undefined>>
@@ -98,6 +98,7 @@ interface Filters {
   hardwareType: string | null;
   serverApplicationType: string | null;
   technicianId: string | null;
+  maintenanceTechnician: string | null;
   operatingSystem: string | null;
   checkStatus: string | null;
 }
@@ -139,6 +140,7 @@ export default function MaintenanceDetailPage() {
     hardwareType: null,
     serverApplicationType: null,
     technicianId: null,
+    maintenanceTechnician: null,
     operatingSystem: null,
     checkStatus: null,
   });
@@ -162,6 +164,17 @@ export default function MaintenanceDetailPage() {
       value,
       label: formatLabel(value)
     }));
+  }, [systems]);
+
+  const allDefaultTechnicians = useMemo(() => {
+    const techs = new Set<string>();
+    systems.forEach(s => {
+      if (s.maintenanceTechnician && s.maintenanceTechnician !== "null") {
+        techs.add(s.maintenanceTechnician)
+      }
+    });
+
+    return Array.from(techs).sort();
   }, [systems]);
 
   const handleReport = () => {
@@ -571,7 +584,7 @@ export default function MaintenanceDetailPage() {
         body: JSON.stringify({
           customerId: data.customerId,
           systemIds: data.systemIds ?? [],
-          technicianIds: data.technicianIds ?? [],
+          coordinatorId: data.coordinatorId,
           date: data.date,
         }),
       })
@@ -591,7 +604,7 @@ export default function MaintenanceDetailPage() {
   }
 
   const resetFilters = () => {
-    setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null, checkStatus: null });
+    setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, maintenanceTechnician: null, operatingSystem: null, checkStatus: null });
   };
 
   const filteredSystems = useMemo(() => {
@@ -605,6 +618,7 @@ export default function MaintenanceDetailPage() {
 
       if (filters.hardwareType && system.hardwareType !== filters.hardwareType) return false;
       if (filters.serverApplicationType && system.serverApplicationType !== filters.serverApplicationType) return false;
+      if (filters.maintenanceTechnician && system.maintenanceTechnician !== filters.maintenanceTechnician) return false;
       if (filters.technicianId) {
         const assignedTechs = entry?.systemTechnicianAssignments?.[system.id] || [];
         if (filters.technicianId === "unassigned") {
@@ -636,9 +650,8 @@ export default function MaintenanceDetailPage() {
 
   // Derive technicians available for this maintenance
   const maintenanceTechnicians = useMemo(() => {
-    if (!entry?.technicianIds || entry.technicianIds.length === 0) return []
-    return technicians.filter(tech => entry.technicianIds?.includes(tech.id))
-  }, [entry?.technicianIds, technicians])
+    return technicians;
+  }, [technicians])
 
   if (loading) {
     return (
@@ -712,6 +725,13 @@ export default function MaintenanceDetailPage() {
                     <span className="font-medium">{entry.customer.serviceManager}</span>
                   </div>
                 )}
+
+                {/* Maintenance Coordinator */}
+                <div className="flex items-center gap-2.5 text-sm">
+                  <User className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-muted-foreground">Wartungskoordinator:</span>
+                  <span className="font-semibold text-primary">{entry.coordinatorId || "–"}</span>
+                </div>
 
                 {/* Address */}
                 {(entry.customer?.city || entry.customer?.address) && (
@@ -927,7 +947,7 @@ export default function MaintenanceDetailPage() {
                 id: entry.id,
                 customerId: entry.customerId,
                 systemIds: entry.systemIds || [],
-                technicianIds: entry.technicianIds || [],
+                coordinatorId: entry.coordinatorId || "",
                 date: entry.date,
               }}
               customers={entry.customer ? [{
@@ -1031,9 +1051,9 @@ export default function MaintenanceDetailPage() {
                   </DropdownMenuPortal>
                 </DropdownMenuSub>
 
-                {/* Technician Filter */}
+                {/* Assigned Technician Filter */}
                 <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>Techniker</DropdownMenuSubTrigger>
+                  <DropdownMenuSubTrigger>Techniker (Zuweisung)</DropdownMenuSubTrigger>
                   <DropdownMenuPortal>
                     <DropdownMenuSubContent>
                       <DropdownMenuItem onSelect={() => setFilters(prev => ({ ...prev, technicianId: "unassigned" }))}>
@@ -1045,6 +1065,23 @@ export default function MaintenanceDetailPage() {
                           onSelect={() => setFilters(prev => ({ ...prev, technicianId: tech.id }))}
                         >
                           {tech.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+
+                {/* Default Technician Filter */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>Techniker (Standard)</DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent>
+                      {allDefaultTechnicians.map(techName => (
+                        <DropdownMenuItem
+                          key={techName}
+                          onSelect={() => setFilters(prev => ({ ...prev, maintenanceTechnician: techName }))}
+                        >
+                          {techName}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuSubContent>
@@ -1077,7 +1114,7 @@ export default function MaintenanceDetailPage() {
 
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onSelect={() => setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, operatingSystem: null, checkStatus: null })}
+                  onSelect={() => setFilters({ hardwareType: null, serverApplicationType: null, technicianId: null, maintenanceTechnician: null, operatingSystem: null, checkStatus: null })}
                 >
                   Filter zurücksetzen
                 </DropdownMenuItem>
@@ -1093,10 +1130,7 @@ export default function MaintenanceDetailPage() {
         ) : filteredSystems.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {filteredSystems.map(system => {
-              // Filter technicians to only show those assigned to this maintenance
-              const availableTechnicians = entry.technicianIds && entry.technicianIds.length > 0
-                ? technicians.filter(tech => entry.technicianIds?.includes(tech.id))
-                : technicians;
+              const availableTechnicians = technicians;
 
               return (
                 <div key={system.id} className="h-full">

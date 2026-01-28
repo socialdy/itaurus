@@ -62,6 +62,7 @@ export async function getMaintenanceEntryById(id: string) {
         title: true,
         systemIds: true,
         technicianIds: true,
+        coordinatorId: true, // New
         date: true,
         notes: true,
         createdAt: true,
@@ -70,7 +71,7 @@ export async function getMaintenanceEntryById(id: string) {
         systemNotes: true,
         systemTechnicianAssignments: true,
         instructions: true,
-        systemTrackableItems: true, // Add systemTrackableItems here
+        systemTrackableItems: true,
       },
     });
     return maintenanceEntry;
@@ -137,13 +138,14 @@ export async function createMaintenanceEntry(newMaintenanceEntry: typeof mainten
     const month = (maintenanceDate.getMonth() + 1).toString().padStart(2, '0');
     const generatedTitle = `${abbreviation} - Wartung ${year}-${month}`;
 
-    // Auto-assign technician logic: if exactly 1 technician is provided, assign to all systems
+    // Auto-assign technician logic: Use the maintenanceTechnician from each system (synced from Freshservice)
     let systemTechnicianAssignments: Record<string, string[]> = newMaintenanceEntry.systemTechnicianAssignments || {};
 
-    if (newMaintenanceEntry.technicianIds && newMaintenanceEntry.technicianIds.length === 1) {
-      const singleTechnician = newMaintenanceEntry.technicianIds[0];
-      systemTechnicianAssignments = systemIdsToAssign.reduce((acc, systemId) => {
-        acc[systemId] = [singleTechnician];
+    if (Object.keys(systemTechnicianAssignments).length === 0) {
+      systemTechnicianAssignments = customerSystems.reduce((acc, system) => {
+        if (system.maintenanceTechnician) {
+          acc[system.id] = [system.maintenanceTechnician];
+        }
         return acc;
       }, {} as Record<string, string[]>);
     }
@@ -202,6 +204,7 @@ export async function updateMaintenanceEntry(id: string, updatedFields: Partial<
         title: true,
         systemIds: true,
         technicianIds: true,
+        coordinatorId: true, // New
         date: true,
         notes: true,
         createdAt: true,

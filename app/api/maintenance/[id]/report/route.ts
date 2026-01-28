@@ -112,15 +112,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
         // Additional metadata on separate lines
         const serviceManager = maint.customer?.serviceManager || '-';
         const billingCode = maint.customer?.billingCode || '-';
-        const technicians = (Array.isArray(maint.technicianIds) && maint.technicianIds.length)
-          ? maint.technicianIds.join(', ')
-          : '-';
+        const technicians = maint.coordinatorId || '-';
 
         page.drawText(`Service Manager: ${serviceManager}`, { x: margin, y: metaY, size: metaFontSize, font });
         metaY -= metaLineHeight;
         page.drawText(`Abrechnungscode: ${billingCode}`, { x: margin, y: metaY, size: metaFontSize, font });
         metaY -= metaLineHeight;
-        page.drawText(`Techniker: ${technicians}`, { x: margin, y: metaY, size: metaFontSize, font });
+        page.drawText(`Wartungskoordinator: ${technicians}`, { x: margin, y: metaY, size: metaFontSize, font });
 
         currentY = metaY - 25; // Increased spacing
 

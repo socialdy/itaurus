@@ -60,6 +60,7 @@ type Filters = {
   hardwareType: string
   maintenanceInterval: string
   serverApplicationType: string
+  maintenanceTechnician: string
 }
 
 const formatLabel = (value?: string | null) => {
@@ -187,6 +188,7 @@ export default function SystemsPage() {
     hardwareType: "all",
     maintenanceInterval: "all",
     serverApplicationType: "all",
+    maintenanceTechnician: "all",
   })
   const PAGE_SIZE = 15
   const [page, setPage] = useState(1)
@@ -233,6 +235,7 @@ export default function SystemsPage() {
     const hardwareTypes = new Set<string>()
     const maintenanceIntervals = new Set<string>()
     const serverApps = new Set<string>()
+    const maintenanceTechnicians = new Set<string>()
 
     systems.forEach((system) => {
       const customerKey = system.customer?.id ?? system.customerId
@@ -245,6 +248,9 @@ export default function SystemsPage() {
       if (system.maintenanceInterval && system.maintenanceInterval !== "null") maintenanceIntervals.add(system.maintenanceInterval)
       if (system.serverApplicationType && !["APPLICATION", "Application"].includes(system.serverApplicationType)) {
         serverApps.add(system.serverApplicationType)
+      }
+      if (system.maintenanceTechnician && system.maintenanceTechnician !== "null") {
+        maintenanceTechnicians.add(system.maintenanceTechnician)
       }
     })
 
@@ -261,6 +267,7 @@ export default function SystemsPage() {
       hardwareTypes: Array.from(hardwareTypes).map(toOption),
       maintenanceIntervals: Array.from(maintenanceIntervals).map(toOption),
       serverApps: Array.from(serverApps).map(toOption),
+      maintenanceTechnicians: Array.from(maintenanceTechnicians).map(value => ({ value, label: value })),
     }
   }, [systems])
 
@@ -301,6 +308,12 @@ export default function SystemsPage() {
           return false
         }
       }
+      if (
+        filters.maintenanceTechnician !== "all" &&
+        system.maintenanceTechnician !== filters.maintenanceTechnician
+      ) {
+        return false
+      }
 
       if (!normalizedSearch) {
         return true
@@ -327,6 +340,7 @@ export default function SystemsPage() {
       hardwareType: "all",
       maintenanceInterval: "all",
       serverApplicationType: "all",
+      maintenanceTechnician: "all",
     })
     setSelectedCustomer("all")
   }
@@ -464,6 +478,24 @@ export default function SystemsPage() {
                             key={value}
                             onSelect={() =>
                               setFilters((prev) => ({ ...prev, maintenanceInterval: value }))
+                            }
+                          >
+                            {label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Techniker</DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        {optionData.maintenanceTechnicians.map(({ value, label }) => (
+                          <DropdownMenuItem
+                            key={value}
+                            onSelect={() =>
+                              setFilters((prev) => ({ ...prev, maintenanceTechnician: value }))
                             }
                           >
                             {label}

@@ -62,6 +62,7 @@ type SystemSummary = {
     serverApplicationType?: string | null
     deviceType?: string | null
     maintenanceInterval?: string | null
+    maintenanceTechnician?: string | null
     installedSoftware?: string[] | null
 }
 
@@ -71,7 +72,7 @@ type MaintenanceEntry = {
     date: string
     status: "OK" | "Error" | "InProgress" | "NotApplicable" | "Planned"
     systemIds?: string[] | null
-    technicianIds?: string[] | null
+    coordinatorId?: string | null
 }
 
 type CustomerDetail = {
@@ -417,7 +418,7 @@ export default function CustomerDetailsPage() {
     const availableOpenTechnicians = useMemo(() => {
         const technicians = new Set<string>()
         maintenanceStats.open.forEach(entry => {
-            entry.technicianIds?.forEach(tech => technicians.add(tech))
+            if (entry.coordinatorId) technicians.add(entry.coordinatorId)
         })
         return Array.from(technicians).sort()
     }, [maintenanceStats.open])
@@ -425,7 +426,7 @@ export default function CustomerDetailsPage() {
     const availablePastTechnicians = useMemo(() => {
         const technicians = new Set<string>()
         maintenanceStats.past.forEach(entry => {
-            entry.technicianIds?.forEach(tech => technicians.add(tech))
+            if (entry.coordinatorId) technicians.add(entry.coordinatorId)
         })
         return Array.from(technicians).sort()
     }, [maintenanceStats.past])
@@ -441,7 +442,7 @@ export default function CustomerDetailsPage() {
             filtered = filtered.filter(entry => entry.status === openMaintenanceStatusFilter)
         }
         if (openMaintenanceTechnicianFilter !== "all") {
-            filtered = filtered.filter(entry => entry.technicianIds?.includes(openMaintenanceTechnicianFilter))
+            filtered = filtered.filter(entry => entry.coordinatorId === openMaintenanceTechnicianFilter)
         }
         return filtered
     }, [maintenanceStats.open, openMaintenanceSearch, openMaintenanceStatusFilter, openMaintenanceTechnicianFilter])
@@ -466,7 +467,7 @@ export default function CustomerDetailsPage() {
             filtered = filtered.filter(entry => entry.status === pastMaintenanceStatusFilter)
         }
         if (pastMaintenanceTechnicianFilter !== "all") {
-            filtered = filtered.filter(entry => entry.technicianIds?.includes(pastMaintenanceTechnicianFilter))
+            filtered = filtered.filter(entry => entry.coordinatorId === pastMaintenanceTechnicianFilter)
         }
         return filtered
     }, [maintenanceStats.past, pastMaintenanceSearch, pastMaintenanceStatusFilter, pastMaintenanceTechnicianFilter])
@@ -846,6 +847,14 @@ export default function CustomerDetailsPage() {
                                                     onSort={requestSystemsSort}
                                                     className=""
                                                 />
+                                                <SortableTableHead<SystemSummary>
+                                                    label="Techniker"
+                                                    sortKey="maintenanceTechnician"
+                                                    currentSortKey={systemsSortConfig.key}
+                                                    currentDirection={systemsSortConfig.direction}
+                                                    onSort={requestSystemsSort}
+                                                    className=""
+                                                />
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -865,6 +874,9 @@ export default function CustomerDetailsPage() {
                                                     <TableCell className="align-top">{formatLabel(system.serverApplicationType)}</TableCell>
                                                     <TableCell className="align-top">
                                                         {system.maintenanceInterval && system.maintenanceInterval !== "null" ? system.maintenanceInterval : ""}
+                                                    </TableCell>
+                                                    <TableCell className="align-top">
+                                                        {system.maintenanceTechnician && system.maintenanceTechnician !== "null" ? system.maintenanceTechnician : ""}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -995,7 +1007,7 @@ export default function CustomerDetailsPage() {
                                                     currentDirection={openSortConfig.direction}
                                                     onSort={requestOpenSort}
                                                 />
-                                                <TableHead>Techniker</TableHead>
+                                                <TableHead>Koordinator</TableHead>
                                                 <TableHead className="w-[50px]"></TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -1016,17 +1028,7 @@ export default function CustomerDetailsPage() {
                                                     </TableCell>
                                                     <TableCell>{renderStatusBadge(entry.status)}</TableCell>
                                                     <TableCell>
-                                                        {entry.technicianIds && entry.technicianIds.length > 0 ? (
-                                                            <div className="flex gap-1">
-                                                                {entry.technicianIds.map((tech) => (
-                                                                    <Badge key={tech} variant="secondary" className="text-xs">
-                                                                        {tech}
-                                                                    </Badge>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted-foreground text-sm">-</span>
-                                                        )}
+                                                        {entry.coordinatorId || "–"}
                                                     </TableCell>
                                                     <TableCell onClick={(e) => e.stopPropagation()}>
                                                         <DropdownMenu>
@@ -1186,7 +1188,7 @@ export default function CustomerDetailsPage() {
                                                     currentDirection={pastSortConfig.direction}
                                                     onSort={requestPastSort}
                                                 />
-                                                <TableHead>Techniker</TableHead>
+                                                <TableHead>Koordinator</TableHead>
                                                 <TableHead className="w-[50px]"></TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -1207,17 +1209,7 @@ export default function CustomerDetailsPage() {
                                                     </TableCell>
                                                     <TableCell>{renderStatusBadge(entry.status)}</TableCell>
                                                     <TableCell>
-                                                        {entry.technicianIds && entry.technicianIds.length > 0 ? (
-                                                            <div className="flex gap-1">
-                                                                {entry.technicianIds.map((tech) => (
-                                                                    <Badge key={tech} variant="secondary" className="text-xs">
-                                                                        {tech}
-                                                                    </Badge>
-                                                                ))}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-muted-foreground text-sm">-</span>
-                                                        )}
+                                                        {entry.coordinatorId || "–"}
                                                     </TableCell>
                                                     <TableCell onClick={(e) => e.stopPropagation()}>
                                                         <DropdownMenu>
